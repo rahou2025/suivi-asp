@@ -3,132 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f1117">
-    <title>ASP · Expert Temps</title>
-    <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' fill='%234f7ef8'/%3E%3C/svg%3E">
-    <link rel="manifest" href="manifest.json">
+    <title>ASP Connect · Expert Performance</title>
     <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-:root {
-    --bg: #0b0e14;
-    --bg-card: #161b26;
-    --bg-input: #1f2633;
-    --border: rgba(255,255,255,0.08);
-    --accent: #4f7ef8;
-    --accent-soft: rgba(79,126,248,0.15);
-    --text: #f0f2f5;
-    --text-dim: #94a3b8;
-    --green: #10b981;
-    --amber: #f59e0b;
-    --red: #ef4444;
-    --radius: 16px;
-    --font: 'Plus Jakarta Sans', sans-serif;
-    --mono: 'JetBrains Mono', monospace;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; overflow: hidden; height: 100vh; }
-/* --- Layout --- */
-#app { max-width: 500px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; }
-.screen { display: none; flex: 1; flex-direction: column; overflow: hidden; animation: fadeIn 0.4s ease; }
-.screen.active { display: flex; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.scroll-area { flex: 1; overflow-y: auto; padding: 20px 16px 100px; scrollbar-width: none; }
-.scroll-area::-webkit-scrollbar { display: none; }
-/* --- UI Elements --- */
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
-.card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 12px; font-weight: 700; }
-.btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-family: var(--font); font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-primary { background: var(--accent); color: white; }
-.btn-primary:active { transform: scale(0.98); opacity: 0.9; }
-.btn-ghost { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); }
-/* --- Metrics --- */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.stat-card { background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); position: relative; }
-.stat-val { font-family: var(--mono); font-size: 22px; font-weight: 600; margin: 4px 0; }
-.stat-label { font-size: 11px; color: var(--text-dim); }
-/* --- Progress Bar --- */
-.prog-container { margin: 10px 0; }
-.prog-bar { height: 8px; background: var(--bg-input); border-radius: 10px; overflow: hidden; margin-top: 6px; }
-.prog-fill { height: 100%; background: var(--accent); transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
-/* --- Form --- */
-.field { margin-bottom: 16px; }
-.field label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--text-dim); }
-.field input, .field select { width: 100%; background: var(--bg-input); border: 1px solid var(--border); padding: 12px; border-radius: 10px; color: white; font-family: var(--font); outline: none; }
-.field input:focus { border-color: var(--accent); }
-/* --- Navigation --- */
-.nav { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(22, 27, 38, 0.8); backdrop-filter: blur(12px); border-top: 1px solid var(--border); display: flex; padding: 10px 10px 24px; }
-.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-dim); cursor: pointer; transition: 0.2s; }
-.nav-item svg { width: 22px; height: 22px; margin-bottom: 4px; stroke-width: 1.5; }
-.nav-item.active { color: var(--accent); }
-/* --- Toast --- */
-#toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 12px 24px; border-radius: 50px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; display: none; animation: slideDown 0.3s ease; }
-@keyframes slideDown { from { top: -50px; } to { top: 20px; } }
-/* --- Data Table --- */
-.table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { text-align: left; padding: 10px; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; }
-td { padding: 12px 10px; border-bottom: 1px solid var(--border); font-family: var(--mono); }
-/* --- PWA install button --- */
-#installBtn { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 10px 20px; border-radius: 50px; font-weight: 600; cursor: pointer; z-index: 1000; display: none; }
-#installBtn:active { transform: translateX(-50%) scale(0.95); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+
+        :root {
+            --bg: #090b10;
+            --card: #12151c;
+            --border: rgba(255,255,255,0.08);
+            --accent: #3e70f7;
+            --accent-glow: rgba(62, 112, 247, 0.2);
+            --text: #ffffff;
+            --text-dim: #848995;
+            --green: #10b981;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --radius: 14px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+
+        /* --- Global Layout --- */
+        #app { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+        .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; animation: slideUp 0.4s ease-out; }
+        .screen.active { display: flex; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .scroll-body { flex: 1; overflow-y: auto; padding: 20px 16px 100px; scrollbar-width: none; }
+        .scroll-body::-webkit-scrollbar { display: none; }
+
+        /* --- Components --- */
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: block; }
+        
+        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .metric-box { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 10px; border: 1px solid var(--border); }
+        .metric-val { font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 600; margin-top: 4px; }
+        .metric-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+        /* --- Bars --- */
+        .prog-wrap { margin-top: 8px; }
+        .prog-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
+        .prog-fill { height: 100%; background: var(--accent); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+
+        /* --- Buttons & Inputs --- */
+        .btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-family: inherit; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); }
+        .btn-primary:active { transform: scale(0.97); }
+        .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+        .input-group { margin-bottom: 16px; }
+        input, select, textarea { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; outline: none; font-size: 14px; }
+        input:focus { border-color: var(--accent); background: rgba(255,255,255,0.08); }
+
+        /* --- Navigation --- */
+        .nav { position: absolute; bottom: 0; width: 100%; background: rgba(18, 21, 28, 0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; padding: 8px 0 24px; z-index: 100; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-dim); cursor: pointer; border: none; background: none; }
+        .nav-item.active { color: var(--accent); }
+        .nav-item svg { width: 22px; height: 22px; margin-bottom: 4px; }
+
+        /* --- Specific Elements --- */
+        .badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+        .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--amber); }
+        .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+
+        .table-hist { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .table-hist th { text-align: left; padding: 8px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+        .table-hist td { padding: 10px 8px; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono'; }
+
+        /* --- Toast --- */
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 10px 20px; border-radius: 50px; font-size: 13px; font-weight: 600; display: none; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
 
-<button id="installBtn">Installer l'application</button>
-<div id="toast">Message</div>
+<div id="toast">Copié !</div>
 
 <div id="app">
 
-    <!-- LOGIN -->
+    <!-- LOGIN SCREEN -->
     <section class="screen active" id="scr-login">
-        <div class="scroll-area" style="display:flex; flex-direction:column; justify-content:center;">
-            <div style="text-align:center; margin-bottom:40px;">
-                <div style="background:var(--accent); width:60px; height:60px; border-radius:18px; margin:0 auto 16px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 20px var(--accent-soft)">
-                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                </div>
-                <h1 style="font-size:24px; font-weight:800;">ASP Connect</h1>
-                <p style="color:var(--text-dim); font-size:14px;">Gestion du temps & performance</p>
+        <div class="scroll-body" style="display:flex; flex-direction:column; justify-content:center; align-items:center;">
+            <div style="background:var(--accent); width:64px; height:64px; border-radius:20px; display:flex; align-items:center; justify-content:center; margin-bottom:20px; box-shadow:0 0 30px var(--accent-glow);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             </div>
+            <h1 style="font-size:24px; font-weight:800; margin-bottom:4px;">ASP Connect</h1>
+            <p style="color:var(--text-dim); margin-bottom:32px; font-size:14px;">Suivi de performance en temps réel</p>
 
-            <div class="field">
-                <label>Identifiant</label>
-                <input type="text" id="login-id" placeholder="Ex: FATIMA_01" value="FATIMA_01">
+            <div class="input-group" style="width:100%">
+                <input type="text" id="log-id" placeholder="ID Agent (ex: 06980713)">
             </div>
-            <div class="field">
-                <label>Mot de passe</label>
-                <input type="password" id="login-pw" placeholder="••••" value="0001">
+            <div class="input-group" style="width:100%">
+                <input type="password" id="log-pw" placeholder="Mot de passe">
             </div>
             <button class="btn btn-primary" onclick="Auth.login()">Se connecter</button>
-            
-            <p style="text-align:center; font-size:12px; color:var(--text-dim); margin-top:20px;">
-                Superviseur : SUPER / 1234
-            </p>
+            <p style="margin-top:20px; font-size:12px; color:var(--text-dim);">Admin : SUPER / 1234</p>
         </div>
     </section>
 
-    <!-- AGENT VIEW -->
+    <!-- AGENT DASHBOARD -->
     <section class="screen" id="scr-agent">
-        <div class="scroll-area" id="agent-content">
-            <!-- Injecté par JS -->
+        <div class="scroll-body" id="agent-ui">
+            <!-- Dynamique -->
         </div>
         <nav class="nav">
-            <div class="nav-item active" onclick="Router.go('agent-dash', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</div>
-            <div class="nav-item" onclick="Router.go('agent-hist', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Historique</div>
-            <div class="nav-item" onclick="Auth.logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Quitter</div>
+            <button class="nav-item active" onclick="Router.go('agent-dash', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</button>
+            <button class="nav-item" onclick="Router.go('agent-hist', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Historique</button>
+            <button class="nav-item" onclick="Auth.logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sortie</button>
         </nav>
     </section>
 
-    <!-- SUPERVISOR VIEW -->
-    <section class="screen" id="scr-super">
-        <div class="scroll-area" id="super-content">
-            <!-- Injecté par JS -->
+    <!-- ADMIN DASHBOARD -->
+    <section class="screen" id="scr-admin">
+        <div class="scroll-body" id="admin-ui">
+            <!-- Dynamique -->
         </div>
         <nav class="nav">
-            <div class="nav-item active" onclick="Router.go('super-team', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>Équipe</div>
-            <div class="nav-item" onclick="Router.go('super-import', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Import</div>
-            <div class="nav-item" onclick="Router.go('super-reunion', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>Réunion</div>
-            <div class="nav-item" onclick="Auth.logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Quitter</div>
+            <button class="nav-item active" onclick="Router.go('admin-team', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>Équipe</button>
+            <button class="nav-item" onclick="Router.go('admin-import', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Import</button>
+            <button class="nav-item" onclick="Router.go('admin-mtg', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>Réunions</button>
+            <button class="nav-item" onclick="Auth.logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/></svg>Sortie</button>
         </nav>
     </section>
 
@@ -136,413 +131,299 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--border); font-family: va
 
 <script>
 /**
- * CONFIGURATION & LOGIQUE MÉTIER
+ * APP LOGIC - ASP CONNECT
  */
-const CONFIG = {
-    GOAL_HOURS: 132,
-    QUAL_LIMIT_SEC: 1800, // 30 min
-    MONTH: 'Avril 2026',
-    STORAGE_KEY: 'asp_data_v2'
-};
 
-const AGENTS_DB = [
-    {id:'FATIMA_01', pw:'0001', name:'Fatima El Amrani', initials:'FA'},
-    {id:'SARA_02', pw:'0002', name:'Sara Benali', initials:'SB'},
-    {id:'NADIA_03', pw:'0003', name:'Nadia Ouali', initials:'NO'},
-    {id:'IMANE_04', pw:'0004', name:'Imane Tazi', initials:'IT'},
-    {id:'HAFSA_05', pw:'0005', name:'Hafsa Moukrim', initials:'HM'},
-    {id:'ZINEB_06', pw:'0006', name:'Zineb Raji', initials:'ZR'},
-    {id:'KHADIJA_07', pw:'0007', name:'Khadija Alami', initials:'KA'},
-    {id:'ASMAA_08', pw:'0008', name:'Asmaa Chraibi', initials:'AC'},
-    {id:'LOUBNA_09', pw:'0009', name:'Loubna Fadil', initials:'LF'},
-    {id:'SIHAM_10', pw:'0010', name:'Siham Berrada', initials:'SI'},
-    {id:'AA15162', pw:'0011', name:'Rachid Ayachi', initials:'RA'},
-    {id:'SUPER', pw:'1234', role:'super', name:'Superviseur', initials:'SU'}
-];
+const GOAL_HOURS = 132;
+const QUAL_LIMIT = 1800; // 30 min en secondes
 
-// État Global
-let State = {
-    user: null,
-    data: {}, // { agentId: [ {date, comm, wait, qual, reunion} ] }
+// Data Store (LocalStorage)
+let DB = JSON.parse(localStorage.getItem('asp_db')) || {
+    agents: [
+        {id: '06980713', name: 'Houyem Haddad', pw: '0001'},
+        {id: '104806005', name: 'Amal Ainseba', pw: '0002'}
+    ],
+    records: {}, // id: [{date, comm, wait, qual, mtg}]
     logs: []
 };
 
-/**
- * CORE ENGINE
- */
-const Core = {
-    init() {
-        const saved = localStorage.getItem(CONFIG.STORAGE_KEY);
-        if(saved) State.data = JSON.parse(saved);
-        else this.seed();
-        console.log("Data loaded:", State.data);
+const Utils = {
+    save: () => localStorage.setItem('asp_db', JSON.stringify(DB)),
+    
+    hmsToSec: (hms) => {
+        if(!hms || !hms.includes(':')) return 0;
+        const [h, m, s] = hms.split(':').map(Number);
+        return (h * 3600) + (m * 60) + s;
     },
 
-    seed() {
-        AGENTS_DB.filter(a => a.role !== 'super').forEach(ag => {
-            State.data[ag.id] = [
-                { date: '2026-04-03', comm: 14400, wait: 3600, qual: 2400, reunion: 1800 },
-                { date: '2026-04-04', comm: 12000, wait: 4000, qual: 1200, reunion: 0 }
-            ];
-        });
-        this.save();
-    },
-
-    save() {
-        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(State.data));
-    },
-
-    fmtHms(sec) {
+    fmtHms: (sec) => {
         const h = Math.floor(sec / 3600);
         const m = Math.floor((sec % 3600) / 60);
         return `${h}h${m.toString().padStart(2, '0')}`;
     },
 
-    calcStats(agentId) {
-        const days = State.data[agentId] || [];
-        let tComm = 0, tWait = 0, tQualReal = 0, tQualPaid = 0, tReunion = 0;
-
-        days.forEach(d => {
-            tComm += d.comm;
-            tWait += d.wait;
-            tQualReal += d.qual;
-            tQualPaid += Math.min(d.qual, CONFIG.QUAL_LIMIT_SEC);
-            tReunion += (d.reunion || 0);
-        });
-
-        const totalPaidSec = tComm + tWait + tQualPaid + tReunion;
-        const totalHours = totalPaidSec / 3600;
-        const progress = Math.min(100, (totalHours / CONFIG.GOAL_HOURS) * 100);
-
-        return { tComm, tWait, tQualPaid, tQualReal, tReunion, totalPaidSec, totalHours, progress, days };
+    toast: (msg) => {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 2500);
     },
 
-    parseTime(timeStr) {
-      const parts = timeStr.split(':');
-      return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    calcAgent: (id) => {
+        const data = DB.records[id] || [];
+        let tComm = 0, tWait = 0, tQualPaid = 0, tMtg = 0, tQualReal = 0;
+        
+        data.forEach(r => {
+            tComm += r.comm;
+            tWait += r.wait;
+            tQualReal += r.qual;
+            tQualPaid += Math.min(r.qual, QUAL_LIMIT);
+            tMtg += (r.mtg || 0);
+        });
+
+        const totalPaidSec = tComm + tWait + tQualPaid + tMtg;
+        const totalHours = totalPaidSec / 3600;
+        const progress = (totalHours / GOAL_HOURS) * 100;
+
+        return { tComm, tWait, tQualPaid, tQualReal, tMtg, totalPaidSec, totalHours, progress, count: data.length };
     }
 };
 
-/**
- * AUTHENTICATION
- */
 const Auth = {
-    login() {
-        const id = document.getElementById('login-id').value.toUpperCase();
-        const pw = document.getElementById('login-pw').value;
-        const user = AGENTS_DB.find(u => u.id === id && u.pw === pw);
+    cur: null,
+    login: () => {
+        const id = document.getElementById('log-id').value;
+        const pw = document.getElementById('log-pw').value;
 
-        if(!user) return UI.toast("Identifiants incorrects", "error");
+        if(id === 'SUPER' && pw === '1234') {
+            Auth.cur = { role: 'admin', name: 'Superviseur' };
+            UI.showScreen('scr-admin');
+            Router.go('admin-team');
+            return;
+        }
 
-        State.user = user;
-        UI.toast(`Bienvenue ${user.name}`);
-        
-        if(user.role === 'super') {
-            Router.go('super-team');
-            UI.showScreen('scr-super');
-        } else {
-            Router.go('agent-dash');
+        const ag = DB.agents.find(a => a.id === id && a.pw === pw);
+        if(ag) {
+            Auth.cur = { ...ag, role: 'agent' };
             UI.showScreen('scr-agent');
+            Router.go('agent-dash');
+        } else {
+            Utils.toast("Identifiants incorrects");
         }
     },
-    logout() {
-        State.user = null;
+    logout: () => {
+        Auth.cur = null;
         UI.showScreen('scr-login');
     }
 };
 
-/**
- * ROUTER / NAVIGATION
- */
 const Router = {
-    go(view, el) {
+    go: (path, el) => {
         if(el) {
-            el.parentElement.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            const nav = el.closest('.nav');
+            nav.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             el.classList.add('active');
         }
-
-        switch(view) {
-            case 'agent-dash': UI.renderAgentDash(); break;
-            case 'agent-hist': UI.renderAgentHist(); break;
-            case 'super-team': UI.renderSuperTeam(); break;
-            case 'super-import': UI.renderSuperImport(); break;
-            case 'super-reunion': UI.renderSuperReunion(); break;
-        }
+        UI.render(path);
     }
 };
 
-/**
- * USER INTERFACE
- */
 const UI = {
-    showScreen(id) {
+    showScreen: (id) => {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     },
 
-    toast(msg) {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.style.display = 'block';
-        setTimeout(() => t.style.display = 'none', 3000);
-    },
+    render: (path) => {
+        const agContainer = document.getElementById('agent-ui');
+        const adContainer = document.getElementById('admin-ui');
 
-    renderAgentDash() {
-        const s = Core.calcStats(State.user.id);
-        const lastDay = s.days[s.days.length - 1] || {comm:0, wait:0, qual:0, reunion:0};
-        
-        document.getElementById('agent-content').innerHTML = `
-            <div style="margin-bottom:24px">
-                <h2 style="font-size:20px">Bonjour, ${State.user.name.split(' ')[0]} 👋</h2>
-                <p style="color:var(--text-dim); font-size:14px">${CONFIG.MONTH}</p>
-            </div>
-
-            <div class="grid-2">
-                <div class="stat-card">
-                    <div class="stat-label">Total Payé</div>
-                    <div class="stat-val">${Core.fmtHms(s.totalPaidSec)}</div>
-                    <div class="stat-label">Objectif: ${CONFIG.GOAL_HOURS}h</div>
+        if(path === 'agent-dash') {
+            const s = Utils.calcAgent(Auth.cur.id);
+            agContainer.innerHTML = `
+                <div style="margin-bottom:24px">
+                    <h2 style="font-size:22px; font-weight:700;">Salut, ${Auth.cur.name.split(' ')[0]} 👋</h2>
+                    <p style="color:var(--text-dim); font-size:14px;">Mois de Mars 2026</p>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Progression</div>
-                    <div class="stat-val" style="color:var(--accent)">${s.progress.toFixed(1)}%</div>
+
+                <div class="card">
+                    <span class="label">Avancement Objectif</span>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:8px;">
+                        <span style="font-size:28px; font-weight:800; font-family:'JetBrains Mono';">${s.progress.toFixed(1)}%</span>
+                        <span style="color:var(--text-dim); font-size:13px;">${Utils.fmtHms(s.totalPaidSec)} / ${GOAL_HOURS}h</span>
+                    </div>
                     <div class="prog-bar"><div class="prog-fill" style="width:${s.progress}%"></div></div>
                 </div>
-            </div>
 
-            <div class="card">
-                <div class="card-label">Détails Cumulés</div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                    <span>📞 Communication</span>
-                    <span class="mono">${Core.fmtHms(s.tComm)}</span>
+                <div class="metric-grid">
+                    <div class="metric-box">
+                        <span class="label">📞 Appels</span>
+                        <div class="metric-val">${Utils.fmtHms(s.tComm)}</div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="label">⏳ Attente</span>
+                        <div class="metric-val">${Utils.fmtHms(s.tWait)}</div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="label">📝 Qualif. <span class="badge badge-amber">Capped</span></span>
+                        <div class="metric-val">${Utils.fmtHms(s.tQualPaid)}</div>
+                        <div class="metric-sub">Hors-plafond: ${Utils.fmtHms(s.tQualReal - s.tQualPaid)}</div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="label">👥 Réunions</span>
+                        <div class="metric-val" style="color:var(--green)">+${Utils.fmtHms(s.tMtg)}</div>
+                    </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                    <span>⏳ Attente fiches</span>
-                    <span class="mono">${Core.fmtHms(s.tWait)}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                    <span>📝 Qualification (payée)</span>
-                    <span class="mono">${Core.fmtHms(s.tQualPaid)}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                    <span>👥 Réunions</span>
-                    <span class="mono">${Core.fmtHms(s.tReunion)}</span>
-                </div>
-                <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-weight:700; display:flex; justify-content:space-between;">
-                    <span>Total Payable</span>
-                    <span style="color:var(--green)">${Core.fmtHms(s.totalPaidSec)}</span>
-                </div>
-            </div>
+            `;
+        }
 
-            <div class="card">
-                <div class="card-label">Dernière activité : ${lastDay.date}</div>
-                <p style="font-size:13px; color:var(--text-dim)">
-                    Production : ${Core.fmtHms(lastDay.comm + lastDay.wait + Math.min(lastDay.qual, 1800))} payés.
-                </p>
-            </div>
-        `;
-    },
+        if(path === 'agent-hist') {
+            const records = DB.records[Auth.cur.id] || [];
+            const rows = records.slice().reverse().map(r => `
+                <tr>
+                    <td>${r.date.split('-').reverse().join('/')}</td>
+                    <td>${Utils.fmtHms(r.comm)}</td>
+                    <td>${Utils.fmtHms(Math.min(r.qual, 1800))}</td>
+                    <td style="font-weight:700; color:var(--text)">${Utils.fmtHms(r.comm + r.wait + Math.min(r.qual, 1800) + (r.mtg||0))}</td>
+                </tr>
+            `).join('');
 
-    renderAgentHist() {
-        const s = Core.calcStats(State.user.id);
-        const rows = s.days.sort((a,b) => b.date.localeCompare(a.date)).map(d => `
-            <tr>
-                <td>${d.date.split('-').reverse().slice(0,2).join('/')}</td>
-                <td>${Core.fmtHms(d.comm)}</td>
-                <td>${Core.fmtHms(d.wait)}</td>
-                <td>${Core.fmtHms(Math.min(d.qual, 1800))}</td>
-                <td>${Core.fmtHms(d.reunion || 0)}</td>
-                <td><strong>${Core.fmtHms(d.comm + d.wait + Math.min(d.qual, 1800) + (d.reunion||0))}</strong></td>
-            </tr>
-        `).join('');
-
-        document.getElementById('agent-content').innerHTML = `
-            <div class="card">
-                <div class="card-label">Historique ${CONFIG.MONTH}</div>
-                <div class="table-scroll">
-                    <table>
-                        <thead><tr><th>Date</th><th>Comm.</th><th>Attente</th><th>Qual.</th><th>Reunion</th><th>Total</th></tr></thead>
-                        <tbody>${rows}</tbody>
+            agContainer.innerHTML = `
+                <div class="card">
+                    <span class="label">Historique détaillé</span>
+                    <table class="table-hist">
+                        <thead><tr><th>Date</th><th>Comm.</th><th>Qual.</th><th>Total</th></tr></thead>
+                        <tbody>${rows || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-dim)">Aucune donnée</td></tr>'}</tbody>
                     </table>
                 </div>
-            </div>
-        `;
-    },
+            `;
+        }
 
-    renderSuperTeam() {
-        const summaries = AGENTS_DB.filter(a => a.role !== 'super').map(ag => {
-            return { ...ag, stats: Core.calcStats(ag.id) };
-        }).sort((a,b) => b.stats.progress - a.stats.progress);
-
-        const cards = summaries.map(u => `
-            <div class="card" style="padding:14px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-weight:700;">${u.name}</div>
-                        <div style="font-size:12px; color:var(--text-dim);">${Core.fmtHms(u.stats.totalPaidSec)} / ${CONFIG.GOAL_HOURS}h</div>
+        if(path === 'admin-team') {
+            const list = DB.agents.map(ag => {
+                const s = Utils.calcAgent(ag.id);
+                return `
+                    <div class="card" style="padding:14px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-weight:600; font-size:14px;">${ag.name}</div>
+                                <div style="font-size:11px; color:var(--text-dim);">${ag.id} • ${s.count} jours</div>
+                            </div>
+                            <div style="text-align:right">
+                                <div style="font-family:'JetBrains Mono'; font-weight:700; color:${s.progress > 80 ? 'var(--green)' : 'var(--text)'}">${s.progress.toFixed(1)}%</div>
+                                <div style="font-size:10px; color:var(--text-dim);">${Utils.fmtHms(s.totalPaidSec)}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="text-align:right">
-                        <div style="font-family:var(--mono); font-weight:700; color:var(--accent)">${u.stats.progress.toFixed(1)}%</div>
-                    </div>
-                </div>
-                <div class="prog-bar"><div class="prog-fill" style="width:${u.stats.progress}%"></div></div>
-            </div>
-        `).join('');
+                `;
+            }).join('');
+            adContainer.innerHTML = `<h2 style="margin-bottom:16px;">Performances Équipe</h2>${list}`;
+        }
 
-        document.getElementById('super-content').innerHTML = `
-            <h2 style="margin-bottom:20px;">Performance Équipe</h2>
-            ${cards}
-        `;
+        if(path === 'admin-import') {
+            adContainer.innerHTML = `
+                <div class="card">
+                    <span class="label">Importation Vicidial</span>
+                    <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">Collez le contenu de votre fichier Vicidial (TXT/CSV) ci-dessous :</p>
+                    <textarea id="csv-data" placeholder="Copiez les lignes du CRM ici..." style="height:200px; font-family:'JetBrains Mono'; font-size:10px; margin-bottom:16px;"></textarea>
+                    <button class="btn btn-primary" onclick="UI.handleImport()">Analyser et Sauvegarder</button>
+                </div>
+                <div class="card">
+                    <span class="label">Format Attendu</span>
+                    <p style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                        L'outil cherche automatiquement l'ID (colonne 2), la Date (colonne 5), le temps Comm (colonne 12), Wait (colonne 10) et Qualif (colonne 14).
+                    </p>
+                </div>
+            `;
+        }
+
+        if(path === 'admin-mtg') {
+            const opts = DB.agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            adContainer.innerHTML = `
+                <div class="card">
+                    <span class="label">Nouvelle Réunion / Coaching</span>
+                    <div class="input-group"><select id="mtg-ag">${opts}</select></div>
+                    <div class="input-group"><input type="date" id="mtg-date" value="${new Date().toISOString().split('T')[0]}"></div>
+                    <div class="input-group"><input type="number" id="mtg-dur" placeholder="Durée en minutes (ex: 45)"></div>
+                    <button class="btn btn-primary" onclick="UI.handleMeeting()">Ajouter le temps</button>
+                </div>
+            `;
+        }
     },
 
-    renderSuperImport() {
-        document.getElementById('super-content').innerHTML = `
-            <div class="card">
-                <div class="card-label">Importation Vicidial</div>
-                <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
-                    Collez ici le contenu de l'export CSV Vicidial (Colonnes Agent, Date, Comm, Qual, Attente).
-                </p>
-                <div class="field">
-                    <textarea id="csv-raw" style="width:100%; height:150px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:white; padding:10px; font-family:var(--mono); font-size:11px;" placeholder="Agent Name;Call Date;...;Talk;Dispo"></textarea>
-                </div>
-                <button class="btn btn-primary" onclick="UI.processImport()">Lancer l'analyse</button>
-            </div>
-            <div class="card" id="import-preview" style="display:none"></div>
-        `;
-    },
+    handleImport: () => {
+        const raw = document.getElementById('csv-data').value;
+        if(!raw) return;
 
-    renderSuperReunion() {
-        const opts = AGENTS_DB.filter(a => a.role !== 'super').map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-        document.getElementById('super-content').innerHTML = `
-            <div class="card">
-                <div class="card-label">Ajouter du temps (Réunion/Coaching)</div>
-                <div class="field">
-                    <label>Agent</label>
-                    <select id="re-agent">${opts}</select>
-                </div>
-                <div class="field">
-                    <label>Date</label>
-                    <input type="date" id="re-date" value="${new Date().toISOString().split('T')[0]}">
-                </div>
-                <div class="field">
-                    <label>Durée (minutes)</label>
-                    <input type="number" id="re-dur" value="30">
-                </div>
-                <button class="btn btn-primary" onclick="UI.saveReunion()">Enregistrer</button>
-            </div>
-        `;
-    },
+        const lines = raw.split('\n');
+        let importCount = 0;
 
-    // ACTIONS
-    saveReunion() {
-        const agId = document.getElementById('re-agent').value;
-        const date = document.getElementById('re-date').value;
-        const dur = parseInt(document.getElementById('re-dur').value) * 60;
+        lines.forEach(line => {
+            // Nettoyage des guillemets et split
+            const cols = line.split('","').map(c => c.replace(/"/g, '').trim());
+            
+            // On cherche la ligne de détail qui a une date en colonne 4 (index)
+            if(cols.length > 10 && cols[4].includes('2026')) {
+                const id = cols[1];
+                const date = cols[4];
+                const wait = Utils.hmsToSec(cols[9]);
+                const comm = Utils.hmsToSec(cols[11]);
+                const qual = Utils.hmsToSec(cols[13]);
 
-        if(!State.data[agId]) State.data[agId] = [];
-        const day = State.data[agId].find(d => d.date === date);
-        
-        if(day) day.reunion = (day.reunion || 0) + dur;
-        else State.data[agId].push({ date, comm:0, wait:0, qual:0, reunion: dur });
-
-        Core.save();
-        UI.toast("Temps ajouté avec succès");
-        Router.go('super-team');
-    },
-
-    processImport() {
-  const raw = document.getElementById('csv-raw').value.trim();
-  if (!raw) return;
-
-  // Extract data lines only, skip headers
-  const lines = raw.split('\n').slice(4).filter(l => l.trim());
-  let count = 0;
-  const preview = [];
-
-  lines.forEach(line => {
-    //console.log('Processing line:', line);
-    const cols = line.split(','); // Split by comma
-
-    if (cols.length >= 20 && cols[1].trim() !== '') {
-      // Make sure it's not a title or an empty row
-      const agentId = cols[1].trim(); // Agent ID
-      const callDate = cols[4].trim(); // Call Date
-      const talkTime = cols[12].trim(); // Communication time
-      const dispoTime = cols[14].trim(); // Qualification Time (colonne P)
-      const waitTime = cols[10].trim(); // Wait time (attente)
-
-      console.log(`agentId=${agentId}, callDate=${callDate}, talkTime=${talkTime}, dispoTime=${dispoTime}, waitTime=${waitTime}`);
-
-      //Check for validity
-      if (agentId === undefined || callDate === undefined || talkTime === undefined || dispoTime === undefined || waitTime === undefined){
-        return;
-      }
-
-      const comm = Core.parseTime(talkTime);
-      const qual = Core.parseTime(dispoTime);
-      const wait = Core.parseTime(waitTime);
-
-      console.log(`comm=${comm}, qual=${qual}, wait=${wait}`);
-
-      const qualCapped = Math.min(qual, CONFIG.QUAL_LIMIT_SEC);
-
-      if (!State.data[agentId]) State.data[agentId] = [];
-
-      const existing = State.data[agentId].find(d => d.date === callDate);
-      if (existing) {
-        existing.comm = comm;
-        existing.qual = qual;
-        existing.wait = wait;
-      } else {
-        State.data[agentId].push({
-          date: callDate,
-          comm: comm,
-          wait: wait,
-          qual: qual,
-          reunion: 0
+                if(!DB.records[id]) DB.records[id] = [];
+                
+                // Eviter les doublons
+                const existingIdx = DB.records[id].findIndex(r => r.date === date);
+                const newData = { date, comm, wait, qual, mtg: 0 };
+                
+                if(existingIdx > -1) {
+                    // On fusionne mais garde les réunions déjà saisies
+                    newData.mtg = DB.records[id][existingIdx].mtg || 0;
+                    DB.records[id][existingIdx] = newData;
+                } else {
+                    DB.records[id].push(newData);
+                }
+                
+                // Si l'agent n'existe pas encore en base, on le crée
+                if(!DB.agents.find(a => a.id === id)) {
+                    DB.agents.push({id, name: cols[0] || 'Agent Inconnu', pw: '0000'});
+                }
+                importCount++;
+            }
         });
-      }
 
-      preview.push(`<tr><td>${agentId}</td><td>${callDate}</td><td>${Core.fmtHms(comm)}</td><td>${Core.fmtHms(qualCapped)}</td><td>${Core.fmtHms(wait)}</td></tr>`);
-      count++;
+        Utils.save();
+        Utils.toast(`${importCount} entrées traitées`);
+        Router.go('admin-team');
+    },
+
+    handleMeeting: () => {
+        const id = document.getElementById('mtg-ag').value;
+        const date = document.getElementById('mtg-date').value;
+        const min = parseInt(document.getElementById('mtg-dur').value);
+
+        if(!id || !date || isNaN(min)) return Utils.toast("Erreur de saisie");
+
+        if(!DB.records[id]) DB.records[id] = [];
+        const day = DB.records[id].find(r => r.date === date);
+        
+        if(day) {
+            day.mtg = (day.mtg || 0) + (min * 60);
+        } else {
+            DB.records[id].push({ date, comm:0, wait:0, qual:0, mtg: (min * 60) });
+        }
+
+        Utils.save();
+        Utils.toast("Temps ajouté !");
+        Router.go('admin-team');
     }
-  });
-
-  Core.save();
-  UI.toast(`${count} lignes importées`);
-
-  const previewHTML = `
-    <div class="card-label">Preview Import:</div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Agent</th>
-            <th>Date</th>
-            <th>Comm</th>
-            <th>Qual</th>
-            <th>Wait</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${preview.join('')}
-        </tbody>
-      </table>
-    </div>`;
-
-  document.getElementById('import-preview').innerHTML = previewHTML;
-  document.getElementById('import-preview').style.display = 'block';
-  Router.go('super-team');
-}
 };
 
-/**
- * PWA - INSTALL
- */
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  document.getElementById('installBtn').style.display = 'block';
+// Start
+window.onload = () => {
+    // Initialisation
+};
 
-  document.getElementById('installBtn').addEventListener('click', async () =>
+</script>
+</body>
+</html>
