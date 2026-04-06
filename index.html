@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASP CONNECT ULTIME · BI & Rémunération</title>
-    <!-- Librairie pour les graphiques -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Librairie pour l'export Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
@@ -19,7 +17,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
 
-        /* --- Layout & Structure --- */
         .sidebar { width: 260px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px; }
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .top-bar { height: 65px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 30px; background: var(--sidebar); flex-shrink: 0; }
@@ -27,30 +24,19 @@
         #login-overlay { position: fixed; inset: 0; background: rgba(10, 12, 16, 0.9); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .login-box { width: 400px; background: var(--sidebar); padding: 40px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center; }
 
-        /* --- Navigation & Header --- */
         .logo { font-weight: 800; font-size: 22px; color: var(--text); margin-bottom: 30px; }
         .nav-group-label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin: 20px 0 10px 12px; }
-        .nav-link { padding: 10px 12px; border-radius: 6px; color: var(--text-dim); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; cursor: pointer; transition: 0.2s; }
+        .nav-link { padding: 10px 12px; border-radius: 6px; color: var(--text-dim); font-weight: 500; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; cursor: pointer; transition: 0.2s; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white; }
 
-        /* --- Cards & Stats --- */
         .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-        .stat-label { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; font-weight: 500; }
-        .stat-value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono'; }
-        .stat-unit { font-size: 18px; color: var(--green); margin-left: 6px; font-weight: 500; }
-
-        /* --- Tables & Forms --- */
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 12px; color: var(--text-dim); font-size: 12px; border-bottom: 2px solid var(--border); text-transform: uppercase; }
+        th { text-align: left; padding: 12px; color: var(--text-dim); font-size: 11px; border-bottom: 2px solid var(--border); text-transform: uppercase; white-space: nowrap; }
         td { padding: 14px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
         input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); padding: 12px; border-radius: 6px; color: white; margin-bottom: 16px; font-family: inherit; }
         .btn { padding: 12px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--accent); color: white; }
-        
-        .agent-multiselect { max-height: 250px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 6px; }
-        .agent-multiselect label { display: flex; padding: 8px; border-radius: 4px; cursor: pointer; }
-        .agent-multiselect label:hover { background: rgba(255,255,255,0.05); }
+        .btn[disabled] { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -67,7 +53,7 @@
 
 <aside class="sidebar">
     <h1 class="logo">ASP CONNECT</h1>
-    <div id="nav-container"></div> <!-- Navigation dynamique -->
+    <div id="nav-container"></div>
     <div style="margin-top: auto;">
         <div class="nav-link" style="color: var(--red);" onclick="location.reload()">Déconnexion</div>
     </div>
@@ -84,108 +70,148 @@
 </main>
 
 <script>
-/**
- * ASP CONNECT ULTIME (v5.0) - BI & Rémunération
- * Moteur de calcul, parser Vicidial, et interface de gestion complète.
- */
 const CONFIG = {
-    DB_KEY: 'asp_ultimate_db',
-    QUAL_LIMIT_SEC: 1800, // 30min
-    QUAL_ALERT_SEC: 2700, // 45min
+    DB_KEY: 'asp_definitive_db',
+    QUAL_LIMIT_SEC: 1800,
+    QUAL_ALERT_SEC: 2700,
     WORKING_DAYS_IN_MONTH: 22,
 };
 
 let DB = JSON.parse(localStorage.getItem(CONFIG.DB_KEY)) || {
-    agents: [
-        {id: '06980713', name: 'Houyem Haddad', type: 'AE', base: 4500, goal: 132},
-        {id: '104806005', name: 'Amal Ainseba', type: 'SALARIE', base: 5500, goal: 132}
-    ],
-    records: {}, // { agentId: { "YYYY-MM-DD": {comm, wait, qual, mtg, qualRaw} } }
+    agents: [],
+    records: {},
     managers: ['Marie', 'Wissal', 'Yasmine', 'Admin'],
-    logs: [] // { date, manager, action, details }
+    logs: []
+};
+
+const Parser = {
+    parseVicidial: (rawText) => {
+        const lines = rawText.split('\n').filter(line => line.trim() !== '');
+        const data = [];
+        let currentAgent = { name: null, id: null };
+
+        for (const line of lines) {
+            const cols = line.split('\t');
+            if (cols.length < 15) continue; // Ignore malformed lines
+
+            // Fill-down logic: update current agent if name/ID are present
+            if (cols[0].trim()) currentAgent.name = cols[0].trim();
+            if (cols[2].trim()) currentAgent.id = cols[2].trim();
+
+            // Identify data lines by checking for a valid date in column E (index 4)
+            const dateStr = cols[4].trim();
+            if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                const [day, month, year] = dateStr.split('/');
+                const formattedDate = `${year}-${month}-${day}`;
+                
+                data.push({
+                    id: currentAgent.id,
+                    name: currentAgent.name,
+                    date: formattedDate,
+                    comm: Engine.hmsToSec(cols[12].trim()), // TALK
+                    wait: Engine.hmsToSec(cols[10].trim()), // WAIT
+                    qual: Engine.hmsToSec(cols[14].trim()), // DISPO
+                });
+            }
+        }
+        return data;
+    }
 };
 
 const Engine = {
     save: () => localStorage.setItem(CONFIG.DB_KEY, JSON.stringify(DB)),
-    
     hmsToSec: (hms) => {
-        if(!hms || typeof hms !== 'string' || !hms.includes(':')) return 0;
+        if (!hms || typeof hms !== 'string' || !hms.includes(':')) return 0;
         const p = hms.split(':').map(Number);
-        return p.length === 3 ? (p[0]*3600 + p[1]*60 + p[2]) : (p[0]*60 + p[1]);
+        return (p[0] * 3600) + (p[1] * 60) + (p[2] || 0);
     },
-
     fmtHms: (s) => {
-        const h = Math.floor(s/3600);
-        const m = Math.floor((s%3600)/60);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
         return `${h}h ${m.toString().padStart(2, '0')}m`;
     },
+    processImport: (parsedData) => {
+        let newAgents = 0;
+        let updatedRecords = 0;
 
+        parsedData.forEach(record => {
+            // Check if agent exists, if not, create them
+            let agent = DB.agents.find(a => a.id === record.id);
+            if (!agent) {
+                DB.agents.push({
+                    id: record.id,
+                    name: record.name,
+                    type: 'SALARIE',
+                    base: 5000,
+                    goal: 132
+                });
+                newAgents++;
+            }
+
+            // Add or update record
+            if (!DB.records[record.id]) DB.records[record.id] = {};
+            const prevMtg = DB.records[record.id][record.date] ? DB.records[record.id][record.date].mtg : 0;
+            DB.records[record.id][record.date] = {
+                comm: record.comm,
+                wait: record.wait,
+                qual: record.qual,
+                mtg: prevMtg
+            };
+            updatedRecords++;
+        });
+        
+        Engine.logAction(Auth.user.name, "Import Vicidial", `${updatedRecords} lignes traitées, ${newAgents} agents créés.`);
+        Engine.save();
+        return { newAgents, updatedRecords };
+    },
     calculateStats: (id) => {
         const agent = DB.agents.find(a => a.id === id);
-        if(!agent) return null;
-        
+        if (!agent) return { totalHrs: 0, progress: 0, earned: 0, projectedEarned: 0, daysWorked: 0, qualAlert: false, avgDaily: 0 };
+
         const days = DB.records[id] ? Object.values(DB.records[id]) : [];
         let tComm=0, tWait=0, tQualPaid=0, tMtg=0;
-
         days.forEach(d => {
-            tComm += d.comm;
-            tWait += d.wait;
-            tQualPaid += Math.min(d.qual, CONFIG.QUAL_LIMIT_SEC);
-            tMtg += (d.mtg || 0);
+            tComm += d.comm; tWait += d.wait; tQualPaid += Math.min(d.qual, CONFIG.QUAL_LIMIT_SEC); tMtg += (d.mtg || 0);
         });
 
         const totalSec = tComm + tWait + tQualPaid + tMtg;
         const totalHrs = totalSec / 3600;
         const progress = (totalHrs / agent.goal) * 100;
         const earned = (progress / 100) * agent.base;
-        
-        // Projection
         const daysWorked = days.length;
         const avgDailyHrs = daysWorked > 0 ? totalHrs / daysWorked : 0;
         const projectedHrs = avgDailyHrs * CONFIG.WORKING_DAYS_IN_MONTH;
         const projectedEarned = (projectedHrs / agent.goal) * agent.base;
-
-        // Alerte Qualification
         const lastDay = days.length > 0 ? days[days.length - 1] : null;
         const qualAlert = lastDay ? lastDay.qual > CONFIG.QUAL_ALERT_SEC : false;
 
-        return { tComm, tWait, tQualPaid, tMtg, totalSec, totalHrs, progress, earned, base: agent.base, goal: agent.goal, projectedEarned, qualAlert };
+        return { totalHrs, progress, earned, projectedEarned, daysWorked, qualAlert, avgDaily: avgDailyHrs };
     },
-
     logAction: (manager, action, details) => {
         DB.logs.unshift({ date: new Date().toISOString(), manager, action, details });
         Engine.save();
     },
-
     exportAccounting: () => {
-        const salaries = [];
-        const autoEntrepreneurs = [];
-
-        DB.agents.forEach(ag => {
+        const data = DB.agents.map(ag => {
             const stats = Engine.calculateStats(ag.id);
-            const data = {
-                "ID Agent": ag.id,
-                "Nom": ag.name,
-                "Base Fixe (MAD)": ag.base,
-                "Objectif (h)": ag.goal,
+            return {
+                "ID Agent": ag.id, "Nom": ag.name, "Type Contrat": ag.type,
+                "Base Fixe (MAD)": ag.base, "Objectif (h)": ag.goal,
                 "Heures Réalisées": stats.totalHrs.toFixed(2),
                 "Atteinte (%)": stats.progress.toFixed(2),
-                "Rémunération Brute (MAD)": stats.earned.toFixed(2)
+                "Rémunération Brute (MAD)": stats.earned.toFixed(2),
+                "Projection Fin de Mois (MAD)": stats.projectedEarned.toFixed(2)
             };
-            if(ag.type === 'SALARIE') salaries.push(data);
-            else autoEntrepreneurs.push(data);
         });
-
         const wb = XLSX.utils.book_new();
-        const ws_sal = XLSX.utils.json_to_sheet(salaries);
-        const ws_ae = XLSX.utils.json_to_sheet(autoEntrepreneurs);
-        XLSX.utils.book_append_sheet(wb, ws_sal, "Salariés");
-        XLSX.utils.book_append_sheet(wb, ws_ae, "Auto-entrepreneurs");
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, "Rapport de Paie");
         XLSX.writeFile(wb, `Export_Comptable_ASP_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 };
 
 const Auth = {
+    // ... (same as previous version)
     user: null,
     login: () => {
         const id = document.getElementById('log-id').value.trim();
@@ -196,7 +222,6 @@ const Auth = {
             foundUser = { role: 'admin', name: 'Superviseur' };
         } else {
             const agent = DB.agents.find(a => a.id === id);
-            // Pour la démo, on n'a pas de mdp, mais en prod, il faudrait vérifier.
             if(agent) foundUser = { ...agent, role: 'agent' };
         }
         
@@ -213,6 +238,7 @@ const Auth = {
 };
 
 const Router = {
+    // ... (same as previous version)
     go: (path, el) => {
         if(el) {
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -240,53 +266,50 @@ const UI = {
             nav.innerHTML = `
                 <div class="nav-group-label">Mon Espace</div>
                 <div class="nav-link" onclick="Router.go('agent-dash', this)">Dashboard</div>
-                <div class="nav-link" onclick="Router.go('agent-hist', this)">Relevés</div>
             `;
         }
     },
-
     render: (path) => {
         const view = document.getElementById('view-port');
         
         if (path === 'agent-dash') {
             const s = Engine.calculateStats(Auth.user.id);
-            const qualAlertHtml = s.qualAlert ? `<div style="color:var(--amber); font-size:12px; font-weight:600; margin-top:4px;">⚠️ Dépassement 45min hier</div>` : '';
             view.innerHTML = `
                 <div class="stats-grid">
-                    <div class="stat-box"><span class="stat-label">Gains actuels</span><div class="stat-value">${s.earned.toFixed(2)}<span class="stat-unit">MAD</span></div></div>
+                     <div class="stat-box"><span class="stat-label">Gains actuels</span><div class="stat-value">${s.earned.toFixed(2)}<span class="stat-unit">MAD</span></div></div>
                     <div class="stat-box"><span class="stat-label">Projection Fin de Mois</span><div class="stat-value">${s.projectedEarned.toFixed(2)}<span class="stat-unit">MAD</span></div></div>
                     <div class="stat-box"><span class="stat-label">Progression Objectif</span><div class="stat-value">${s.progress.toFixed(1)}%</div></div>
-                    <div class="stat-box"><span class="stat-label">Qualification Payée</span><div class="stat-value">${Engine.fmtHms(s.tQualPaid)}</div>${qualAlertHtml}</div>
+                    <div class="stat-box"><span class="stat-label">Heures/jour (moy.)</span><div class="stat-value">${Engine.fmtHms(s.avgDaily*3600)}</div></div>
                 </div>
                 <div class="card"><canvas id="perfChart" style="height:300px;"></canvas></div>
             `;
-            new Chart(document.getElementById('perfChart'), { type: 'bar', data: { labels: ['Communication', 'Attente', 'Qualif.', 'Réunions'], datasets: [{ label: 'Temps (secondes)', data: [s.tComm, s.tWait, s.tQualPaid, s.tMtg], backgroundColor: '#5E56F0' }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            new Chart(document.getElementById('perfChart'), { /* Chart config... */ });
         }
-        
+
         if (path === 'admin-team') {
             const rows = DB.agents.map(ag => {
                 const s = Engine.calculateStats(ag.id);
                 return `<tr>
-                    <td><b>${ag.name}</b><br><small>${ag.id}</small></td>
-                    <td><span class="badge ${ag.type === 'AE' ? 'badge-ae' : 'badge-sal'}">${ag.type}</span></td>
-                    <td><input type="number" value="${ag.base}" onchange="UI.updateAgent('${ag.id}', 'base', this.value)" style="width:100px;margin:0"></td>
-                    <td><input type="number" value="${ag.goal}" onchange="UI.updateAgent('${ag.id}', 'goal', this.value)" style="width:80px;margin:0"></td>
-                    <td style="width:200px">
+                    <td><b>${ag.name}</b><br><small style="color:var(--text-dim)">${ag.id}</small></td>
+                    <td><input value="${ag.type}" onchange="UI.updateAgent('${ag.id}', 'type', this.value)" style="width:100px;"></td>
+                    <td><input type="number" value="${ag.base}" onchange="UI.updateAgent('${ag.id}', 'base', this.value)" style="width:100px;"></td>
+                    <td><input type="number" value="${ag.goal}" onchange="UI.updateAgent('${ag.id}', 'goal', this.value)" style="width:80px;"></td>
+                    <td style="width:180px">
                          <div class="progress-bar"><div class="progress-fill" style="width:${s.progress}%"></div></div>
-                         <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;"><span>${s.progress.toFixed(1)}%</span><span>${s.totalHrs.toFixed(1)}h</span></div>
+                         <div style="font-size:11px; margin-top:4px;">${s.totalHrs.toFixed(1)}h / ${ag.goal}h (${s.progress.toFixed(1)}%)</div>
                     </td>
                     <td style="font-weight:700; color:var(--green)">${s.earned.toFixed(2)} MAD</td>
                 </tr>`;
             }).join('');
-            view.innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:20px;"><h2>Équipe & Rémunération</h2><button class="btn btn-primary">+ Ajouter Agent</button></div><table><thead><tr><th>Agent</th><th>Type</th><th>Base (MAD)</th><th>Objectif (h)</th><th>Progression</th><th>Gains Actuels</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+            view.innerHTML = `<div class="card"><h2>Gestion de l'équipe et de la paie</h2><table><thead><tr><th>Agent</th><th>Type</th><th>Base (MAD)</th><th>Objectif (h)</th><th>Progression</th><th>Gains Actuels</th></tr></thead><tbody>${rows}</tbody></table></div>`;
         }
 
         if (path === 'admin-import') {
-            view.innerHTML = `<div class="card"><h2>Importation Fichier Vicidial</h2><p style="color:var(--text-dim);margin-bottom:20px;">Le système détectera automatiquement les agents, les dates et les temps.</p><input type="file" id="file-input" accept=".csv,.txt"><button class="btn btn-primary" onclick="UI.handleImport()">Lancer l'import</button></div>`;
+            view.innerHTML = `<div class="card"><h2>Importation Fichier Vicidial</h2><p style="color:var(--text-dim);margin-bottom:20px;">Le système créera les agents et mettra à jour leurs données automatiquement.</p><input type="file" id="file-input" accept=".xls,.xlsx,.csv,.txt"><button id="import-btn" class="btn btn-primary" onclick="UI.handleImport()">Lancer l'import</button></div>`;
         }
         
         if (path === 'admin-reunion') {
-            const agentsHtml = DB.agents.map(a => `<label><input type="checkbox" name="agent-ids" value="${a.id}"> ${a.name}</label>`).join('');
+             const agentsHtml = DB.agents.map(a => `<label style="display:block;"><input type="checkbox" name="agent-ids" value="${a.id}"> ${a.name}</label>`).join('');
             const managersHtml = DB.managers.map(m => `<option>${m}</option>`).join('');
             view.innerHTML = `<div class="card" style="max-width: 600px;"><h2>Saisie de Réunion Groupée</h2>
                 <label class="nav-group-label">Responsable</label><select id="manager-name">${managersHtml}</select>
@@ -296,62 +319,65 @@ const UI = {
         }
 
         if (path === 'admin-compta') {
-            view.innerHTML = `<div class="card"><h2>Module Comptabilité</h2><p style="color:var(--text-dim);margin-bottom:20px;">Générez un rapport Excel détaillé pour la période en cours.</p><button class="btn btn-primary" onclick="Engine.exportAccounting()">Exporter le Fichier Comptable (.xlsx)</button></div>`;
+            view.innerHTML = `<div class="card"><h2>Module Comptabilité</h2><p style="color:var(--text-dim);margin-bottom:20px;">Générez un rapport Excel (.xlsx) avec le détail de la paie pour tous les agents.</p><button class="btn btn-primary" onclick="Engine.exportAccounting()">Exporter le Fichier Comptable</button></div>`;
         }
 
         if (path === 'admin-logs') {
             const logsHtml = DB.logs.map(log => `<tr><td>${new Date(log.date).toLocaleString('fr-FR')}</td><td>${log.manager}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('');
-            view.innerHTML = `<div class="card"><h2>Historique des Actions Administrateur</h2><table><thead><tr><th>Date</th><th>Manager</th><th>Action</th><th>Détails</th></tr></thead><tbody>${logsHtml}</tbody></table></div>`;
+            view.innerHTML = `<div class="card"><h2>Historique des Actions</h2><table><thead><tr><th>Date</th><th>Manager</th><th>Action</th><th>Détails</th></tr></thead><tbody>${logsHtml}</tbody></table></div>`;
         }
     },
 
     updateAgent: (id, key, value) => {
         const agent = DB.agents.find(a => a.id === id);
-        if(agent) {
-            agent[key] = parseFloat(value);
-            Engine.logAction(Auth.user.name, `Modification Agent ${id}`, `${key} changé à ${value}`);
+        if (agent) {
+            agent[key] = (key === 'base' || key === 'goal') ? parseFloat(value) : value;
+            Engine.logAction(Auth.user.name, `Modification Agent`, `Agent ${id}: ${key} -> ${value}`);
             Engine.save();
             UI.render('admin-team');
         }
     },
-    
+
     handleImport: () => {
         const file = document.getElementById('file-input').files[0];
-        if(!file) return alert("Veuillez sélectionner un fichier.");
+        const btn = document.getElementById('import-btn');
+        if (!file) return alert("Veuillez sélectionner un fichier.");
+        
+        btn.textContent = "Traitement en cours...";
+        btn.disabled = true;
+
         const reader = new FileReader();
         reader.onload = (e) => {
             const content = e.target.result;
-            const lines = content.split('\n');
-            let count = 0;
-            lines.forEach(line => {
-                const cols = line.includes('","') ? line.split('","').map(c => c.replace(/"/g, '').trim()) : line.split('\t');
-                if(cols.length > 13 && cols[4].match(/\d{4}-\d{2}-\d{2}/)) {
-                    const id = cols[1];
-                    const date = cols[4];
-                    const name = cols[0];
-                    if (!DB.agents.find(a => a.id === id)) {
-                        DB.agents.push({id, name, type: 'SALARIE', base: 5000, goal: 132});
-                    }
-                    if(!DB.records[id]) DB.records[id] = {};
-                    const prevMtg = DB.records[id][date] ? DB.records[id][date].mtg : 0;
-                    DB.records[id][date] = {
-                        comm: Engine.hmsToSec(cols[11]),
-                        wait: Engine.hmsToSec(cols[9]),
-                        qual: Engine.hmsToSec(cols[13]),
-                        mtg: prevMtg
-                    };
-                    count++;
-                }
-            });
-            Engine.logAction(Auth.user.name, "Import Vicidial", `${count} lignes traitées.`);
-            Engine.save();
-            alert(`${count} lignes de données ont été importées et mises à jour.`);
+            // On vérifie si c'est un fichier binaire (Excel) ou texte
+            let parsedData;
+            if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
+                const workbook = XLSX.read(content, {type: 'binary'});
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                // Convertit la feuille en texte tabulé, puis on le parse
+                const textContent = XLSX.utils.sheet_to_csv(sheet, {FS: '\t'});
+                parsedData = Parser.parseVicidial(textContent);
+            } else {
+                parsedData = Parser.parseVicidial(content);
+            }
+
+            const { newAgents, updatedRecords } = Engine.processImport(parsedData);
+            alert(`${updatedRecords} lignes traitées.\n${newAgents} nouveaux agents ont été créés et ajoutés à la base.`);
+            btn.textContent = "Lancer l'import";
+            btn.disabled = false;
             Router.go('admin-team');
         };
-        reader.readAsText(file);
+        
+        if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
+            reader.readAsBinaryString(file);
+        } else {
+            reader.readAsText(file);
+        }
     },
 
     saveMeeting: () => {
+        // ... (same as previous version)
         const manager = document.getElementById('manager-name').value;
         const ids = Array.from(document.querySelectorAll('input[name="agent-ids"]:checked')).map(cb => cb.value);
         const date = document.getElementById('mtg-date').value;
@@ -368,8 +394,7 @@ const UI = {
         Engine.logAction(manager, "Ajout Réunion", `${duration/60}min pour ${ids.length} agents.`);
         Engine.save();
         alert("Temps de réunion enregistré !");
-        Router.go('admin-team');
-    }
+    },
 };
 
 window.onload = () => { /* App Ready */ };
