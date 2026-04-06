@@ -1,107 +1,81 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0f1117">
-<title>ASP · Expert Temps</title>
-<style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f1117">
+    <title>ASP · Expert Temps</title>
+    <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' fill='%234f7ef8'/%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 :root {
-  --bg: #0b0e14;
-  --bg-card: #161b26;
-  --bg-input: #1f2633;
-  --border: rgba(255,255,255,0.08);
-  --accent: #4f7ef8;
-  --accent-soft: rgba(79,126,248,0.15);
-  --text: #f0f2f5;
-  --text-dim: #94a3b8;
-  --green: #10b981;
-  --amber: #f59e0b;
-  --red: #ef4444;
-  --radius: 16px;
-  --font: 'Plus Jakarta Sans', sans-serif;
-  --mono: 'JetBrains Mono', monospace;
+    --bg: #0b0e14;
+    --bg-card: #161b26;
+    --bg-input: #1f2633;
+    --border: rgba(255,255,255,0.08);
+    --accent: #4f7ef8;
+    --accent-soft: rgba(79,126,248,0.15);
+    --text: #f0f2f5;
+    --text-dim: #94a3b8;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --radius: 16px;
+    --font: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { 
-    font-family: var(--font); background: var(--bg); color: var(--text); 
-    line-height: 1.6; overflow: hidden; height: 100vh;
-}
-
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; overflow: hidden; height: 100vh; }
 /* --- Layout --- */
 #app { max-width: 500px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; }
 .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; animation: fadeIn 0.4s ease; }
 .screen.active { display: flex; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
 .scroll-area { flex: 1; overflow-y: auto; padding: 20px 16px 100px; scrollbar-width: none; }
 .scroll-area::-webkit-scrollbar { display: none; }
-
 /* --- UI Elements --- */
 .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
 .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 12px; font-weight: 700; }
-
-.btn { 
-    width: 100%; padding: 14px; border-radius: 12px; border: none; font-family: var(--font); 
-    font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-}
+.btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-family: var(--font); font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-primary { background: var(--accent); color: white; }
 .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
 .btn-ghost { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); }
-
 /* --- Metrics --- */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .stat-card { background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); position: relative; }
 .stat-val { font-family: var(--mono); font-size: 22px; font-weight: 600; margin: 4px 0; }
 .stat-label { font-size: 11px; color: var(--text-dim); }
-
 /* --- Progress Bar --- */
 .prog-container { margin: 10px 0; }
 .prog-bar { height: 8px; background: var(--bg-input); border-radius: 10px; overflow: hidden; margin-top: 6px; }
 .prog-fill { height: 100%; background: var(--accent); transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
-
 /* --- Form --- */
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--text-dim); }
-.field input, .field select { 
-    width: 100%; background: var(--bg-input); border: 1px solid var(--border); 
-    padding: 12px; border-radius: 10px; color: white; font-family: var(--font); outline: none;
-}
+.field input, .field select { width: 100%; background: var(--bg-input); border: 1px solid var(--border); padding: 12px; border-radius: 10px; color: white; font-family: var(--font); outline: none; }
 .field input:focus { border-color: var(--accent); }
-
 /* --- Navigation --- */
-.nav { 
-    position: absolute; bottom: 0; left: 0; right: 0; background: rgba(22, 27, 38, 0.8);
-    backdrop-filter: blur(12px); border-top: 1px solid var(--border); display: flex; padding: 10px 10px 24px;
-}
-.nav-item { 
-    flex: 1; display: flex; flex-direction: column; align-items: center; font-size: 10px; 
-    color: var(--text-dim); cursor: pointer; transition: 0.2s; 
-}
+.nav { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(22, 27, 38, 0.8); backdrop-filter: blur(12px); border-top: 1px solid var(--border); display: flex; padding: 10px 10px 24px; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-dim); cursor: pointer; transition: 0.2s; }
 .nav-item svg { width: 22px; height: 22px; margin-bottom: 4px; stroke-width: 1.5; }
 .nav-item.active { color: var(--accent); }
-
 /* --- Toast --- */
-#toast {
-    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    background: var(--accent); color: white; padding: 12px 24px; border-radius: 50px;
-    font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000;
-    display: none; animation: slideDown 0.3s ease;
-}
+#toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 12px 24px; border-radius: 50px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; display: none; animation: slideDown 0.3s ease; }
 @keyframes slideDown { from { top: -50px; } to { top: 20px; } }
-
 /* --- Data Table --- */
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; padding: 10px; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; }
 td { padding: 12px 10px; border-bottom: 1px solid var(--border); font-family: var(--mono); }
-</style>
+/* --- PWA install button --- */
+#installBtn { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 10px 20px; border-radius: 50px; font-weight: 600; cursor: pointer; z-index: 1000; display: none; }
+#installBtn:active { transform: translateX(-50%) scale(0.95); }
+    </style>
 </head>
 <body>
 
+<button id="installBtn">Installer l'application</button>
 <div id="toast">Message</div>
 
 <div id="app">
@@ -167,15 +141,23 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--border); font-family: va
 const CONFIG = {
     GOAL_HOURS: 132,
     QUAL_LIMIT_SEC: 1800, // 30 min
-    MONTH: 'Mars 2026',
-    STORAGE_KEY: 'asp_data_v1'
+    MONTH: 'Avril 2026',
+    STORAGE_KEY: 'asp_data_v2'
 };
 
 const AGENTS_DB = [
-    {id:'FATIMA_01', pw:'0001', name:'Fatima El Amrani'},
-    {id:'SARA_02', pw:'0002', name:'Sara Benali'},
-    {id:'NADIA_03', pw:'0003', name:'Nadia Ouali'},
-    {id:'SUPER', pw:'1234', role:'super', name:'Superviseur'}
+    {id:'FATIMA_01', pw:'0001', name:'Fatima El Amrani', initials:'FA'},
+    {id:'SARA_02', pw:'0002', name:'Sara Benali', initials:'SB'},
+    {id:'NADIA_03', pw:'0003', name:'Nadia Ouali', initials:'NO'},
+    {id:'IMANE_04', pw:'0004', name:'Imane Tazi', initials:'IT'},
+    {id:'HAFSA_05', pw:'0005', name:'Hafsa Moukrim', initials:'HM'},
+    {id:'ZINEB_06', pw:'0006', name:'Zineb Raji', initials:'ZR'},
+    {id:'KHADIJA_07', pw:'0007', name:'Khadija Alami', initials:'KA'},
+    {id:'ASMAA_08', pw:'0008', name:'Asmaa Chraibi', initials:'AC'},
+    {id:'LOUBNA_09', pw:'0009', name:'Loubna Fadil', initials:'LF'},
+    {id:'SIHAM_10', pw:'0010', name:'Siham Berrada', initials:'SI'},
+    {id:'AA15162', pw:'0011', name:'Rachid Ayachi', initials:'RA'},
+    {id:'SUPER', pw:'1234', role:'super', name:'Superviseur', initials:'SU'}
 ];
 
 // État Global
@@ -193,13 +175,14 @@ const Core = {
         const saved = localStorage.getItem(CONFIG.STORAGE_KEY);
         if(saved) State.data = JSON.parse(saved);
         else this.seed();
+        console.log("Data loaded:", State.data);
     },
 
     seed() {
-        AGENTS_DB.filter(a => a.id !== 'SUPER').forEach(ag => {
+        AGENTS_DB.filter(a => a.role !== 'super').forEach(ag => {
             State.data[ag.id] = [
-                { date: '2026-03-02', comm: 14400, wait: 3600, qual: 2400, reunion: 1800 },
-                { date: '2026-03-03', comm: 12000, wait: 4000, qual: 1200, reunion: 0 }
+                { date: '2026-04-03', comm: 14400, wait: 3600, qual: 2400, reunion: 1800 },
+                { date: '2026-04-04', comm: 12000, wait: 4000, qual: 1200, reunion: 0 }
             ];
         });
         this.save();
@@ -232,6 +215,11 @@ const Core = {
         const progress = Math.min(100, (totalHours / CONFIG.GOAL_HOURS) * 100);
 
         return { tComm, tWait, tQualPaid, tQualReal, tReunion, totalPaidSec, totalHours, progress, days };
+    },
+
+    parseTime(timeStr) {
+      const parts = timeStr.split(':');
+      return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
     }
 };
 
@@ -361,28 +349,29 @@ const UI = {
             <tr>
                 <td>${d.date.split('-').reverse().slice(0,2).join('/')}</td>
                 <td>${Core.fmtHms(d.comm)}</td>
+                <td>${Core.fmtHms(d.wait)}</td>
                 <td>${Core.fmtHms(Math.min(d.qual, 1800))}</td>
+                <td>${Core.fmtHms(d.reunion || 0)}</td>
                 <td><strong>${Core.fmtHms(d.comm + d.wait + Math.min(d.qual, 1800) + (d.reunion||0))}</strong></td>
             </tr>
         `).join('');
 
         document.getElementById('agent-content').innerHTML = `
             <div class="card">
-                <div class="card-label">Historique Mars 2026</div>
+                <div class="card-label">Historique ${CONFIG.MONTH}</div>
                 <div class="table-scroll">
                     <table>
-                        <thead><tr><th>Date</th><th>Comm.</th><th>Qual.</th><th>Total</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Comm.</th><th>Attente</th><th>Qual.</th><th>Reunion</th><th>Total</th></tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
                 </div>
             </div>
-            <button class="btn btn-ghost" onclick="UI.exportCSV('${State.user.id}')">Exporter mon rapport (CSV)</button>
         `;
     },
 
     renderSuperTeam() {
         const summaries = AGENTS_DB.filter(a => a.role !== 'super').map(ag => {
-            return { name: ag.name, stats: Core.calcStats(ag.id) };
+            return { ...ag, stats: Core.calcStats(ag.id) };
         }).sort((a,b) => b.stats.progress - a.stats.progress);
 
         const cards = summaries.map(u => `
@@ -411,10 +400,10 @@ const UI = {
             <div class="card">
                 <div class="card-label">Importation Vicidial</div>
                 <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
-                    Collez ici le contenu de l'export CSV Vicidial (Colonnes Agent, Date, Comm, Qual).
+                    Collez ici le contenu de l'export CSV Vicidial (Colonnes Agent, Date, Comm, Qual, Attente).
                 </p>
                 <div class="field">
-                    <textarea id="csv-raw" style="width:100%; height:150px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:white; padding:10px; font-family:var(--mono); font-size:11px;" placeholder="agent_id;call_date;comm_sec;qual_sec..."></textarea>
+                    <textarea id="csv-raw" style="width:100%; height:150px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:white; padding:10px; font-family:var(--mono); font-size:11px;" placeholder="Agent Name;Call Date;...;Talk;Dispo"></textarea>
                 </div>
                 <button class="btn btn-primary" onclick="UI.processImport()">Lancer l'analyse</button>
             </div>
@@ -462,67 +451,98 @@ const UI = {
     },
 
     processImport() {
-        const raw = document.getElementById('csv-raw').value.trim();
-        if(!raw) return;
+  const raw = document.getElementById('csv-raw').value.trim();
+  if (!raw) return;
 
-        const lines = raw.split('\n');
-        let count = 0;
+  // Extract data lines only, skip headers
+  const lines = raw.split('\n').slice(4).filter(l => l.trim());
+  let count = 0;
+  const preview = [];
 
-        // Simulation simple de parsing
-        // On attend : agent_id;date;comm;wait;qual
-        lines.forEach((line, index) => {
-            if(index === 0 && line.includes('agent')) return; // skip header
-            const col = line.split(/[;,]/);
-            if(col.length >= 5) {
-                const id = col[0].trim().toUpperCase();
-                const date = col[1].trim();
-                if(!State.data[id]) State.data[id] = [];
-                
-                // Update or push
-                const existing = State.data[id].find(d => d.date === date);
-                const entry = {
-                    date,
-                    comm: parseInt(col[2]) || 0,
-                    wait: parseInt(col[3]) || 0,
-                    qual: parseInt(col[4]) || 0,
-                    reunion: 0
-                };
+  lines.forEach(line => {
+    //console.log('Processing line:', line);
+    const cols = line.split(','); // Split by comma
 
-                if(existing) Object.assign(existing, entry);
-                else State.data[id].push(entry);
-                count++;
-            }
+    if (cols.length >= 20 && cols[1].trim() !== '') {
+      // Make sure it's not a title or an empty row
+      const agentId = cols[1].trim(); // Agent ID
+      const callDate = cols[4].trim(); // Call Date
+      const talkTime = cols[12].trim(); // Communication time
+      const dispoTime = cols[14].trim(); // Qualification Time (colonne P)
+      const waitTime = cols[10].trim(); // Wait time (attente)
+
+      console.log(`agentId=${agentId}, callDate=${callDate}, talkTime=${talkTime}, dispoTime=${dispoTime}, waitTime=${waitTime}`);
+
+      //Check for validity
+      if (agentId === undefined || callDate === undefined || talkTime === undefined || dispoTime === undefined || waitTime === undefined){
+        return;
+      }
+
+      const comm = Core.parseTime(talkTime);
+      const qual = Core.parseTime(dispoTime);
+      const wait = Core.parseTime(waitTime);
+
+      console.log(`comm=${comm}, qual=${qual}, wait=${wait}`);
+
+      const qualCapped = Math.min(qual, CONFIG.QUAL_LIMIT_SEC);
+
+      if (!State.data[agentId]) State.data[agentId] = [];
+
+      const existing = State.data[agentId].find(d => d.date === callDate);
+      if (existing) {
+        existing.comm = comm;
+        existing.qual = qual;
+        existing.wait = wait;
+      } else {
+        State.data[agentId].push({
+          date: callDate,
+          comm: comm,
+          wait: wait,
+          qual: qual,
+          reunion: 0
         });
+      }
 
-        Core.save();
-        UI.toast(`${count} lignes importées`);
-        Router.go('super-team');
-    },
-
-    exportCSV(agentId) {
-        const s = Core.calcStats(agentId);
-        let csv = "Date;Communication;Attente;QualificationPayee;Réunion;TotalJournalier\n";
-        s.days.forEach(d => {
-            const tot = d.comm + d.wait + Math.min(d.qual, 1800) + (d.reunion||0);
-            csv += `${d.date};${d.comm};${d.wait};${Math.min(d.qual, 1800)};${d.reunion||0};${tot}\n`;
-        });
-        
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Rapport_${agentId}_${CONFIG.MONTH}.csv`;
-        a.click();
+      preview.push(`<tr><td>${agentId}</td><td>${callDate}</td><td>${Core.fmtHms(comm)}</td><td>${Core.fmtHms(qualCapped)}</td><td>${Core.fmtHms(wait)}</td></tr>`);
+      count++;
     }
+  });
+
+  Core.save();
+  UI.toast(`${count} lignes importées`);
+
+  const previewHTML = `
+    <div class="card-label">Preview Import:</div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Date</th>
+            <th>Comm</th>
+            <th>Qual</th>
+            <th>Wait</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${preview.join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('import-preview').innerHTML = previewHTML;
+  document.getElementById('import-preview').style.display = 'block';
+  Router.go('super-team');
+}
 };
 
 /**
- * INITIALISATION
+ * PWA - INSTALL
  */
-window.onload = () => {
-    Core.init();
-};
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBtn').style.display = 'block';
 
-</script>
-</body>
-</html>
+  document.getElementById('installBtn').addEventListener('click', async () =>
