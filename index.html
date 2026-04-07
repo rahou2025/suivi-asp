@@ -812,6 +812,8 @@ const COLORS      = ['#3d78ff','#00d68f','#ffb020','#a78bfa','#22d3ee',
                       '#ff4d4d','#fb923c','#ec4899','#06b6d4','#84cc16',
                       '#8b5cf6','#14b8a6','#f472b6','#fbbf24','#a3e635'];
 const HPD_OPTIONS = [4,5,6,7,8];
+const MTG_TYPES   = { coaching:'Coaching', reunion:'Réunion équipe', decorticage:'Décorticage appels', formation:'Formation' };
+const MANAGERS    = ['Marie','Wissal','Yasmine','Admin','Superviseur'];
 
 // ═══════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
@@ -1089,6 +1091,597 @@ const U = {
 // ═══════════════════════════════════════════════════════════════════════
 // DATABASE
 // ═══════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════
+// AMÉLIORATIONS STORAGE — Compression + Chunking + Export/Import JSON
+// ═══════════════════════════════════════════════════════════════════════
+const Storage = {
+  // Taille max avant alerte (4 Mo sur 5 Mo limite)
+  WARN_SIZE: 4 * 1024 * 1024,
+  MAX_LOGS: 2000,
+  MAX_IMPORT_HISTORY: 50,
+
+  // Sauvegarde avec gestion quota et compression
+  save(data) {
+    try {
+      const payload = JSON.stringify(data);
+      const sizeBytes = new Blob([payload]).size;
+
+      // Alerte si proche de la limite
+      if (sizeBytes > this.WARN_SIZE) {
+        U.toast(`⚠ Stockage utilisé : ${(sizeBytes/1024/1024).toFixed(1)} Mo / ~5 Mo. Exportez une sauvegarde JSON.`, 'warn', 8000);
+      }
+
+      // Sauvegarder les records séparément si trop gros
+      if (sizeBytes > 3 * 1024 * 1024) {
+        // Nettoyer les vieux logs pour libérer de l'espace
+        if (data.logs && data.logs.length > 200) {
+          data.logs = data.logs.slice(0, 200);
+        }
+        const payload2 = JSON.stringify(data);
+        localStorage.setItem(DB_KEY, payload2);
+      } else {
+        localStorage.setItem(DB_KEY, payload);
+      }
+      return true;
+    } catch(e) {
+      if (e.name === 'QuotaExceededError') {
+        U.toast('🔴 Stockage plein ! Exportez une sauvegarde JSON puis videz les vieilles données.', 'error', 10000);
+        // Tentative de récupération : purger les vieux logs
+        if (data.logs && data.logs.length > 50) {
+          data.logs = data.logs.slice(0, 50);
+          try { localStorage.setItem(DB_KEY, JSON.stringify(data)); return true; } catch(e2) {}
+        }
+      } else {
+        U.toast('Erreur de sauvegarde : ' + e.message, 'error');
+      }
+      return false;
+    }
+  },
+
+  // Statistiques stockage
+  getStats() {
+    const used = localStorage.getItem(DB_KEY) ? new Blob([localStorage.getItem(DB_KEY)]).size : 0;
+    const total = 5 * 1024 * 1024;
+    return {
+      usedBytes: used,
+      usedMB: (used / 1024 / 1024).toFixed(2),
+      pct: Math.round(used / total * 100),
+      remaining: ((total - used) / 1024 / 1024).toFixed(2)
+    };
+  },
+
+  // Export JSON complet (sauvegarde manuelle)
+  exportJSON() {
+    const payload = JSON.stringify(DB.data, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ASP_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    DB.log('Système', 'Export sauvegarde JSON', `${(payload.length/1024).toFixed(0)} Ko`);
+    U.toast('Sauvegarde JSON exportée', 'success');
+  },
+
+  // Import JSON (restauration)
+  importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (!parsed.agents || !parsed.records) throw new Error('Format invalide');
+        if (!confirm(`Restaurer la sauvegarde du ${parsed.lastImport?.date||'?'} avec ${parsed.agents.length} agents ? Les données actuelles seront remplacées.`)) return;
+        DB.data = parsed;
+        DB.save();
+        DB.log('Système', 'Restauration JSON', file.name);
+        U.toast('Sauvegarde restaurée avec succès', 'success');
+        location.reload();
+      } catch(err) {
+        U.toast('Fichier JSON invalide : ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// MOTEUR D'IMPORT AMÉLIORÉ — Pipeline complet avec aperçu/validation
+// ═══════════════════════════════════════════════════════════════════════
+const ImportEngine = {
+  // État courant d'un import en cours
+  pending: null,
+
+  // Parser principal — retourne un rapport détaillé
+  parse(text, colMapping) {
+    const cm = colMapping || DB.data.colMapping || { agentName:0,agentId:1,date:4,calls:5,wait:9,comm:11,qual:13 };
+    const lines = text.split('\n').filter(l => l.trim());
+    const SKIP = ['USER NAME','TOTALS','AGENT PERF','---','REPORT','TIME RANGE','SYSTEM'];
+    const results = [];
+    const errors  = [];
+    const warnings = [];
+    let curAgent = null;
+    let lineNum = 0;
+    let skipped = 0;
+
+    for (const line of lines) {
+      lineNum++;
+      // Skip headers
+      if (SKIP.some(p => line.toUpperCase().includes(p))) { skipped++; continue; }
+
+      // Parse colonnes (supporte ; et ,)
+      const sep = line.includes(';') ? ';' : ',';
+      const cols = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { inQ = !inQ; continue; }
+        if (c === sep && !inQ) { cols.push(cur.trim()); cur = ''; continue; }
+        cur += c;
+      }
+      cols.push(cur.trim());
+
+      if (cols.length < 6) { skipped++; continue; }
+
+      // Détecter ligne agent (fill-down)
+      const col0 = (cols[cm.agentName] || '').trim();
+      const col1 = (cols[cm.agentId]   || '').trim();
+      const dateRaw = (cols[cm.date]   || '').trim();
+      const isDate = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) || /^\d{2}\/\d{2}\/\d{4}$/.test(dateRaw);
+
+      if (!isDate && col0.length > 2 && !/^\d+$/.test(col0) && col1) {
+        curAgent = { id: col1, name: col0 };
+        continue;
+      }
+      if (!curAgent) continue;
+      if (!isDate) { warnings.push({ line: lineNum, msg: `Date invalide: "${dateRaw}" pour ${curAgent.name}` }); continue; }
+
+      // Normaliser date
+      let date = dateRaw;
+      if (date.includes('/')) {
+        const p = date.split('/');
+        date = p.length === 3 ? `${p[2]}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}` : dateRaw;
+      }
+
+      // Vérifier cohérence date/période
+      const period = DB.data.period;
+      const periodPrefix = period; // ex: '2026-04'
+      if (!date.startsWith(periodPrefix.substring(0,7))) {
+        warnings.push({ line: lineNum, msg: `Date ${date} hors période ${period} (agent: ${curAgent.name})` });
+      }
+
+      const calls  = parseInt(cols[cm.calls] || '0') || 0;
+      const wait   = U.toSec(cols[cm.wait]  || '0');
+      const comm   = U.toSec(cols[cm.comm]  || '0');
+      const qual   = U.toSec(cols[cm.qual]  || '0');
+      const trailing = cols.slice(Math.max(cm.qual+1, 14)).map(x => parseInt(x)||0).filter(x => x >= 0);
+      const sales  = trailing.length ? trailing[trailing.length-1] : 0;
+
+      // Validation basique
+      if (comm < 0 || wait < 0 || qual < 0) {
+        errors.push({ line: lineNum, msg: `Valeurs négatives pour ${curAgent.name} le ${date}` });
+        continue;
+      }
+
+      // Vérifier doublon dans les résultats déjà parsés
+      const existsInResult = results.find(r => r.agId === curAgent.id && r.date === date);
+      if (existsInResult) {
+        warnings.push({ line: lineNum, msg: `Doublon: ${curAgent.name} - ${date} (ligne ignorée)` });
+        continue;
+      }
+
+      // Vérifier si déjà en DB (pour info)
+      const ag = DB.data.agents.find(a => a.viciId === curAgent.id || a.id === curAgent.id);
+      const existsInDB = ag && (DB.data.records[ag.id]||[]).find(r => r.date === date && r.period === period);
+
+      results.push({
+        agId: curAgent.id, agName: curAgent.name, date, comm, wait, qual, calls, sales,
+        isNew: !existsInDB, isUpdate: !!existsInDB,
+        tmc: calls > 0 ? Math.round(comm/calls) : 0,
+        rdvRate: calls > 0 ? (sales/calls*100).toFixed(1) : '0',
+      });
+    }
+
+    return {
+      entries: results,
+      errors, warnings,
+      stats: {
+        totalLines: lineNum,
+        parsed: results.length,
+        skipped,
+        errorsCount: errors.length,
+        warningsCount: warnings.length,
+        newEntries: results.filter(r => r.isNew).length,
+        updates: results.filter(r => r.isUpdate).length,
+        newAgents: [...new Set(results.filter(r => {
+          const ag = DB.data.agents.find(a => a.viciId === r.agId || a.id === r.agId);
+          return !ag;
+        }).map(r => r.agId))].length,
+        agents: [...new Set(results.map(r => r.agId))].length,
+        latestDate: results.length ? results.map(r=>r.date).sort().reverse()[0] : null,
+      }
+    };
+  },
+
+  // Appliquer l'import validé
+  apply(report, sourceName) {
+    if (!report || !report.entries.length) return;
+    const period = DB.data.period;
+    const newAgents = [];
+
+    report.entries.forEach(e => {
+      let ag = DB.data.agents.find(a => a.viciId === e.agId || a.id === e.agId);
+      if (!ag) {
+        const colorIdx = DB.data.agents.length % COLORS.length;
+        ag = { id:e.agId, viciId:e.agId, name:e.agName, pw:'0000',
+          color:COLORS[colorIdx], salBase:0, salType:'AE', hpd:6, active:true };
+        DB.data.agents.push(ag);
+        newAgents.push(e.agName);
+      }
+      if (!DB.data.records[ag.id]) DB.data.records[ag.id] = [];
+      const ex = DB.data.records[ag.id].find(r => r.date === e.date && r.period === period);
+      const entry = { period, date:e.date, comm:e.comm, wait:e.wait, qual:e.qual, calls:e.calls, sales:e.sales, mtg:ex?.mtg||0 };
+      if (ex) Object.assign(ex, entry);
+      else DB.data.records[ag.id].push(entry);
+    });
+
+    // Enregistrer l'historique d'import
+    if (!DB.data.importHistory) DB.data.importHistory = [];
+    const importRecord = {
+      id: `imp_${Date.now()}`,
+      ts: new Date().toISOString(),
+      source: sourceName,
+      period,
+      stats: report.stats,
+      actor: Auth.cur?.name || 'Système',
+      canUndo: true, // permet annulation dans les 10 premières minutes
+      entries: report.entries.map(e => ({ agId:e.agId, date:e.date, wasNew:e.isNew }))
+    };
+    DB.data.importHistory.unshift(importRecord);
+    if (DB.data.importHistory.length > Storage.MAX_IMPORT_HISTORY) {
+      DB.data.importHistory = DB.data.importHistory.slice(0, Storage.MAX_IMPORT_HISTORY);
+    }
+
+    DB.data.lastImport = {
+      id: importRecord.id,
+      date: report.stats.latestDate || U.today(),
+      period,
+      count: report.stats.parsed,
+      agents: report.stats.agents,
+      source: sourceName,
+      ts: importRecord.ts
+    };
+
+    DB.log(Auth.cur?.name||'Système', 'Import Vicidial',
+      `${report.stats.parsed} lignes · ${report.stats.newEntries} nouvelles · ${report.stats.updates} MàJ · ${newAgents.length} agents créés · source: ${sourceName}`);
+    DB.save();
+    ImportEngine.pending = null;
+    return importRecord;
+  },
+
+  // Annuler le dernier import (si récent < 10 min)
+  undo(importId) {
+    if (!DB.data.importHistory) return;
+    const imp = DB.data.importHistory.find(i => i.id === importId);
+    if (!imp) { U.toast('Import introuvable', 'error'); return; }
+    const ageMins = (Date.now() - new Date(imp.ts).getTime()) / 60000;
+    if (ageMins > 10) { U.toast('Annulation impossible après 10 minutes', 'error'); return; }
+    if (!confirm(`Annuler l'import "${imp.source}" du ${U.fmtDate(imp.ts.split('T')[0])} ? Les données importées seront supprimées.`)) return;
+
+    // Supprimer les entrées créées par cet import
+    imp.entries.forEach(e => {
+      if (!e.wasNew) return; // ne supprimer que les nouvelles entrées
+      const ag = DB.data.agents.find(a => a.viciId === e.agId || a.id === e.agId);
+      if (!ag) return;
+      DB.data.records[ag.id] = (DB.data.records[ag.id]||[]).filter(
+        r => !(r.date === e.date && r.period === imp.period)
+      );
+    });
+
+    imp.canUndo = false;
+    DB.log(Auth.cur?.name||'Système', 'Annulation import', imp.source);
+    DB.save();
+    U.toast('Import annulé', 'success');
+    Views['ad-import']();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// MOTEUR RÉUNIONS AMÉLIORÉ — Garde-fous + Impact paie + Justification
+// ═══════════════════════════════════════════════════════════════════════
+const MeetingEngine = {
+  // Vérifier doublons avant saisie
+  checkDuplicate(agIds, date, type, durMin) {
+    const period = DB.data.period;
+    const dupes = [];
+    agIds.forEach(agId => {
+      const existing = (DB.data.meetings||[]).find(m =>
+        m.agIds.includes(agId) && m.date === date && m.type === type
+      );
+      if (existing) {
+        const ag = DB.data.agents.find(a => a.id === agId);
+        dupes.push(`${ag?.name||agId} le ${U.fmtDate(date)} (${existing.durMin}min déjà saisie)`);
+      }
+    });
+    return dupes;
+  },
+
+  // Calculer l'impact paie avant validation
+  calcImpact(agIds, durMin) {
+    const period = DB.data.period;
+    return agIds.map(agId => {
+      const ag = DB.data.agents.find(a => a.id === agId);
+      if (!ag || !ag.salBase) return null;
+      const s = U.calc(agId, period);
+      if (!s) return null;
+      const cfg = DB.data.periods[period] || { goalH:132 };
+      const addSec = durMin * 60;
+      const newTot = s.tot + addSec;
+      const newPct = Math.min(100, newTot / 3600 / cfg.goalH * 100);
+      const newEarned = Math.round(ag.salBase * newPct / 100);
+      return {
+        name: ag.name,
+        addH: U.hms(addSec),
+        before: { pct: s.pct.toFixed(1), earned: s.earned },
+        after:  { pct: newPct.toFixed(1), earned: newEarned },
+        gain: newEarned - s.earned
+      };
+    }).filter(Boolean);
+  },
+
+  // Sauvegarder avec justification obligatoire
+  save(agIds, date, durMin, type, host, note, justification) {
+    if (!agIds.length || !date || !durMin || durMin <= 0) return false;
+    const period = DB.data.period;
+    const id = `mtg_${Date.now()}`;
+    const meeting = { id, agIds, date, period, durMin, type, host, note: note||'', justification: justification||'', ts: new Date().toISOString(), deletedAt: null, deleteReason: null };
+    if (!DB.data.meetings) DB.data.meetings = [];
+    DB.data.meetings.unshift(meeting);
+
+    // Appliquer le temps
+    agIds.forEach(agId => {
+      if (!DB.data.records[agId]) DB.data.records[agId] = [];
+      const day = DB.data.records[agId].find(r => r.date === date && r.period === period);
+      if (day) day.mtg = (day.mtg||0) + durMin*60;
+      else DB.data.records[agId].push({ period, date, comm:0,wait:0,qual:0,calls:0,sales:0, mtg:durMin*60 });
+    });
+
+    DB.log(Auth.cur?.name||'Système', 'Ajout réunion',
+      `${MTG_TYPES[type]||type} · ${durMin}min · ${agIds.length} agent(s) · ${U.fmtDate(date)} · host:${host}`);
+    DB.save();
+    return id;
+  },
+
+  // Supprimer avec justification obligatoire
+  delete(meetingId, reason) {
+    if (!reason || reason.trim().length < 5) {
+      U.toast('Justification requise (min 5 caractères)', 'error');
+      return false;
+    }
+    const m = (DB.data.meetings||[]).find(x => x.id === meetingId);
+    if (!m) return false;
+    m.deletedAt = new Date().toISOString();
+    m.deleteReason = reason.trim();
+    // Retirer le temps des records
+    const period = m.period;
+    m.agIds.forEach(agId => {
+      const day = (DB.data.records[agId]||[]).find(r => r.date === m.date && r.period === period);
+      if (day) day.mtg = Math.max(0, (day.mtg||0) - m.durMin*60);
+    });
+    DB.log(Auth.cur?.name||'Système', 'Suppression réunion', `ID:${meetingId} · raison: ${reason}`);
+    DB.save();
+    return true;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// MOTEUR PÉRIODES — Clôture, gel, gouvernance
+// ═══════════════════════════════════════════════════════════════════════
+const PeriodEngine = {
+  STATUS: { DRAFT: 'draft', VALIDATED: 'validated', EXPORTED: 'exported' },
+
+  getStatus(periodKey) {
+    return DB.data.periods[periodKey]?.status || this.STATUS.DRAFT;
+  },
+
+  isLocked(periodKey) {
+    const s = this.getStatus(periodKey);
+    return s === this.STATUS.VALIDATED || s === this.STATUS.EXPORTED;
+  },
+
+  validate(periodKey) {
+    if (!DB.data.periods[periodKey]) return;
+    if (!confirm(`Valider et geler la période ${DB.data.periods[periodKey].label} ? Les données ne pourront plus être modifiées.`)) return;
+    DB.data.periods[periodKey].status = this.STATUS.VALIDATED;
+    DB.data.periods[periodKey].validatedAt = new Date().toISOString();
+    DB.data.periods[periodKey].validatedBy = Auth.cur?.name;
+    DB.log(Auth.cur?.name, 'Clôture période', `${periodKey} - ${DB.data.periods[periodKey].label}`);
+    DB.save();
+    U.toast(`Période ${DB.data.periods[periodKey].label} validée et gelée`, 'success');
+    Views['ad-periods']();
+  },
+
+  markExported(periodKey) {
+    if (!DB.data.periods[periodKey]) return;
+    DB.data.periods[periodKey].status = this.STATUS.EXPORTED;
+    DB.data.periods[periodKey].exportedAt = new Date().toISOString();
+    DB.data.periods[periodKey].exportedBy = Auth.cur?.name;
+    DB.log(Auth.cur?.name, 'Export comptable', periodKey);
+    DB.save();
+  },
+
+  // Historique des modifications de contrat/salaire
+  logContractChange(agId, field, oldVal, newVal) {
+    if (!DB.data.contractHistory) DB.data.contractHistory = [];
+    DB.data.contractHistory.unshift({
+      ts: new Date().toISOString(),
+      agId, field, oldVal, newVal,
+      actor: Auth.cur?.name,
+      period: DB.data.period
+    });
+    if (DB.data.contractHistory.length > 1000) DB.data.contractHistory = DB.data.contractHistory.slice(0, 1000);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// ALERTES SUPERVISEUR AMÉLIORÉES
+// ═══════════════════════════════════════════════════════════════════════
+const AlertEngine = {
+  // Analyser toute l'équipe et générer des alertes prioritaires
+  analyze(period) {
+    const alerts = [];
+    const peers = DB.data.agents.filter(a => a.active !== false).map(ag => {
+      const s = U.calc(ag.id, period);
+      return { ag, s, sc: U.alertScore(ag.id, period) };
+    });
+    if (!peers.length) return [];
+
+    const avgTmc   = peers.reduce((a,p)=>a+p.s.tmcSec,0)/peers.length;
+    const avgRdv   = peers.reduce((a,p)=>a+p.s.rdvRate,0)/peers.length;
+    const avgH     = peers.reduce((a,p)=>a+p.s.h,0)/peers.length;
+
+    peers.forEach(({ ag, s, sc }) => {
+      const agAlerts = [];
+
+      // 1. Qualification excessive
+      if (s.qualRatio > 25) agAlerts.push({ type:'qual', sev:'red', msg:`Qualification excessive : ${s.qualRatio.toFixed(0)}% du temps total` });
+      else if (s.qualRatio > 18) agAlerts.push({ type:'qual', sev:'amber', msg:`Qualification élevée : ${s.qualRatio.toFixed(0)}%` });
+
+      // 2. TMC faible
+      if (avgTmc > 0 && s.tmcSec < avgTmc * 0.65) agAlerts.push({ type:'tmc', sev:'red', msg:`TMC faible : ${U.mmss(s.tmcSec)} vs moy. ${U.mmss(Math.round(avgTmc))}` });
+      else if (avgTmc > 0 && s.tmcSec < avgTmc * 0.80) agAlerts.push({ type:'tmc', sev:'amber', msg:`TMC sous la moyenne : ${U.mmss(s.tmcSec)}` });
+
+      // 3. Taux RDV faible
+      if (avgRdv > 0 && s.rdvRate < avgRdv * 0.60) agAlerts.push({ type:'rdv', sev:'red', msg:`RDV faible : ${s.rdvRate.toFixed(1)}% vs moy. ${avgRdv.toFixed(1)}%` });
+
+      // 4. Peu d'heures
+      if (avgH > 0 && s.h < avgH * 0.70) agAlerts.push({ type:'hours', sev:'red', msg:`Heures insuffisantes : ${U.hms(s.h*3600)} vs moy. ${U.hms(avgH*3600)}` });
+
+      // 5. Baisse brutale : comparer avec période précédente (si disponible)
+      const periods = Object.keys(DB.data.periods).sort();
+      const curIdx = periods.indexOf(period);
+      if (curIdx > 0) {
+        const prevPeriod = periods[curIdx-1];
+        const prevS = U.calc(ag.id, prevPeriod);
+        if (prevS && prevS.tCalls > 10 && s.tCalls > 5) {
+          if (s.rdvRate < prevS.rdvRate * 0.70) {
+            agAlerts.push({ type:'drop', sev:'red', msg:`Baisse RDV vs mois préc. : ${s.rdvRate.toFixed(1)}% vs ${prevS.rdvRate.toFixed(1)}%` });
+          }
+          if (s.tmcSec < prevS.tmcSec * 0.70) {
+            agAlerts.push({ type:'drop', sev:'amber', msg:`Baisse TMC vs mois préc. : ${U.mmss(s.tmcSec)} vs ${U.mmss(prevS.tmcSec)}` });
+          }
+        }
+      }
+
+      if (agAlerts.length) alerts.push({ ag, s, sc, alerts: agAlerts });
+    });
+
+    return alerts.sort((a,b) => b.alerts.filter(x=>x.sev==='red').length - a.alerts.filter(x=>x.sev==='red').length || b.sc - a.sc);
+  },
+
+  // Actions prioritaires du jour
+  getDailyActions(period) {
+    const today = U.today();
+    const actions = [];
+
+    // Agents sans données aujourd'hui
+    DB.data.agents.filter(a => a.active !== false).forEach(ag => {
+      const hasToday = (DB.data.records[ag.id]||[]).some(r => r.date === today);
+      if (!hasToday) actions.push({ priority:'info', msg:`${ag.name} : aucune donnée aujourd'hui` });
+    });
+
+    // Import pas fait depuis > 1 jour
+    if (DB.data.lastImport) {
+      const daysSince = Math.floor((Date.now() - new Date(DB.data.lastImport.date).getTime()) / 86400000);
+      if (daysSince > 1) actions.push({ priority:'warn', msg:`Dernier import : il y a ${daysSince} jours (${U.fmtDate(DB.data.lastImport.date)})` });
+    } else {
+      actions.push({ priority:'red', msg:'Aucun import Vicidial effectué' });
+    }
+
+    // Périodes non clôturées
+    Object.entries(DB.data.periods).forEach(([k,p]) => {
+      if (k < period && (!p.status || p.status === 'draft')) {
+        actions.push({ priority:'warn', msg:`Période ${p.label} non clôturée` });
+      }
+    });
+
+    return actions;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXPORT AMÉLIORÉ — PDF + Identifiant + Contrôle
+// ═══════════════════════════════════════════════════════════════════════
+const ExportEngine = {
+  genId() {
+    return `EXP-${DB.data.period}-${Date.now().toString(36).toUpperCase()}`;
+  },
+
+  // Export CSV équipe avec identifiant
+  exportTeamCSV(period) {
+    const expId = this.genId();
+    const cfg = DB.data.periods[period] || {};
+    let csv = `# Export ASP Connect PRO\n# ID: ${expId}\n# Période: ${cfg.label||period}\n# Généré le: ${new Date().toLocaleString('fr-FR')}\n# Par: ${Auth.cur?.name}\n#\n`;
+    csv += 'Agent;ID Vicidial;Contrat;Base MAD;Comm.;Attente;Qual. brute;Qual. retenue;Réunions;Total;Progression %;Appels;RDV;Taux RDV;TMC (sec);Gains MAD;Projection MAD\n';
+    DB.data.agents.filter(a => a.active !== false).forEach(ag => {
+      const s = U.calc(ag.id, period);
+      if (!s) return;
+      csv += `${ag.name};${ag.viciId||ag.id};${ag.salType||'AE'};${ag.salBase||0};${U.hms(s.tC)};${U.hms(s.tW)};${U.hms(s.tQR)};${U.hms(s.tQP)};${U.hms(s.tM)};${U.hms(s.tot)};${s.pct.toFixed(1)};${s.tCalls};${s.tSales};${s.rdvRate.toFixed(2)};${s.tmcSec};${s.earned};${s.projEarned}\n`;
+    });
+    U.downloadCSV(csv, `Equipe_${period}_${expId}.csv`);
+    DB.log(Auth.cur?.name, 'Export CSV équipe', `${expId} · ${period}`);
+    if (PeriodEngine.getStatus(period) !== PeriodEngine.STATUS.EXPORTED) PeriodEngine.markExported(period);
+    U.toast(`Export téléchargé (ID: ${expId})`, 'success');
+    return expId;
+  },
+
+  // Export CSV journalier détaillé (justificatif)
+  exportDetailCSV(agId, period) {
+    const ag = DB.data.agents.find(a => a.id === agId);
+    const s = U.calc(agId, period);
+    if (!s || !ag) return;
+    const expId = this.genId();
+    const cfg = DB.data.periods[period] || {};
+    let csv = `# Relevé justificatif — ${ag.name}\n# ID: ${expId}\n# Période: ${cfg.label||period}\n# Généré le: ${new Date().toLocaleString('fr-FR')}\n# Superviseur: ${Auth.cur?.name}\n#\n`;
+    csv += 'Date;Communication;Attente;Qual. brute;Qual. retenue;Dépassement exclu;Réunions;Total payable;Appels;RDV;Taux RDV;TMC (sec)\n';
+    [...s.recs].sort((a,b)=>a.date.localeCompare(b.date)).forEach(r => {
+      const qp = Math.min(r.qual, QUAL_CAP);
+      const ov = r.qual - qp;
+      const tot = r.comm + r.wait + qp + (r.mtg||0);
+      csv += `${r.date};${U.hms(r.comm)};${U.hms(r.wait)};${U.hms(r.qual)};${U.hms(qp)};${ov>0?U.hms(ov):'0'};${U.hms(r.mtg||0)};${U.hms(tot)};${r.calls||0};${r.sales||0};${r.calls>0?((r.sales/r.calls)*100).toFixed(2)+'%':'0%'};${U.tmc(r.comm,r.calls||0)}\n`;
+    });
+    csv += `\nTOTAL;${U.hms(s.tC)};${U.hms(s.tW)};${U.hms(s.tQR)};${U.hms(s.tQP)};;;${U.hms(s.tot)};${s.tCalls};${s.tSales};${s.rdvRate.toFixed(2)}%;${s.tmcSec}\n`;
+    U.downloadCSV(csv, `Relevé_${ag.name.replace(/ /g,'_')}_${period}_${expId}.csv`);
+    DB.log(Auth.cur?.name||ag.name, 'Export relevé individuel', `${ag.name} · ${period} · ${expId}`);
+    U.toast('Relevé exporté', 'success');
+  },
+
+  // Export PDF via impression navigateur
+  exportPrint(period) {
+    const cfg = DB.data.periods[period] || {};
+    const expId = this.genId();
+    const rows = DB.data.agents.filter(a=>a.active!==false).map(ag => {
+      const s = U.calc(ag.id, period);
+      if (!s) return '';
+      return `<tr><td>${ag.name}</td><td>${ag.viciId||ag.id}</td><td>${ag.salType||'AE'}</td><td>${(ag.salBase||0).toLocaleString('fr-FR')} MAD</td><td>${U.hms(s.tot)}</td><td>${s.pct.toFixed(1)}%</td><td>${s.tCalls}</td><td>${s.tSales}</td><td>${s.rdvRate.toFixed(1)}%</td><td>${U.mmss(s.tmcSec)}</td><td>${s.earned.toLocaleString('fr-FR')} MAD</td></tr>`;
+    }).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport ${cfg.label||period}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px}h1{font-size:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#f0f0f0;font-weight:bold}.meta{color:#666;font-size:11px;margin-bottom:15px}@media print{button{display:none}}</style></head>
+    <body><h1>ASP Connect PRO — ${cfg.label||period}</h1>
+    <div class="meta">ID Export: ${expId} · Généré le ${new Date().toLocaleString('fr-FR')} · Par ${Auth.cur?.name}</div>
+    <button onclick="window.print()">🖨 Imprimer / Sauvegarder PDF</button>
+    <table><thead><tr><th>Agent</th><th>ID Vicidial</th><th>Contrat</th><th>Base</th><th>Heures</th><th>%</th><th>Appels</th><th>RDV</th><th>Taux</th><th>TMC</th><th>Gains</th></tr></thead><tbody>${rows}</tbody></table>
+    </body></html>`);
+    win.document.close();
+    DB.log(Auth.cur?.name, 'Export PDF/Impression', `${expId} · ${period}`);
+  }
+};
+
+
+
 const DB = {
   data: null,
 
@@ -1115,7 +1708,9 @@ const DB = {
       lastImport: null,
       meetings:   [],
       logs:       [],
-      colMapping: { agentName:0, agentId:1, date:4, calls:5, wait:9, comm:11, qual:13 }
+      colMapping: { agentName:0, agentId:1, date:4, calls:5, wait:9, comm:11, qual:13 },
+      importHistory: [],
+      contractHistory: []
     };
 
     // Generate realistic demo data
@@ -1185,6 +1780,9 @@ const DB = {
             if (a.active === undefined) a.active = true;
             if (!a.hpd) a.hpd = 6;
           });
+          if (!this.data.importHistory)   this.data.importHistory = [];
+          if (!this.data.contractHistory) this.data.contractHistory = [];
+          Object.values(this.data.periods||{}).forEach(p => { if (!p.status) p.status = 'draft'; });
           return;
         }
       }
@@ -1194,20 +1792,29 @@ const DB = {
   },
 
   save() {
-    try { localStorage.setItem(DB_KEY, JSON.stringify(this.data)); }
-    catch(e) { U.toast('Erreur de sauvegarde (localStorage plein?)', 'error'); }
+    Storage.save(this.data);
   },
+  storageStats() { return Storage.getStats(); },
 
   reset() {
     try { localStorage.removeItem(DB_KEY); } catch(e) {}
   },
 
   log(actor, action, detail='') {
+    if (!this.data) return;
+    if (!this.data.logs) this.data.logs = [];
     this.data.logs.unshift({
+      id: 'log_' + Date.now(),
       ts: new Date().toISOString(),
-      actor, action, detail
+      actor: actor || 'Systeme',
+      action,
+      detail,
+      period: this.data.period || null,
     });
-    if (this.data.logs.length > 500) this.data.logs.splice(400);
+    if (this.data.logs.length > 2000) this.data.logs = this.data.logs.slice(0, 2000);
+  },
+  logAndSave(actor, action, detail='') {
+    this.log(actor, action, detail);
     this.save();
   }
 };
@@ -1690,7 +2297,13 @@ _exportAgentCSV(agId) {
   const avgRdv = U.div(tSales,tCalls)*100;
   const alerts = DB.data.agents.filter(a=>U.alertScore(a.id,period)>=45).length;
 
+  // Calcul alertes équipe
+  const _dailyActs = AlertEngine.getDailyActions(DB.data.period);
+  const _urgentAlerts = AlertEngine.analyze(DB.data.period).filter(a => a.alerts.some(x => x.sev === 'red'));
   document.getElementById('view').innerHTML = `
+  ${_dailyActs.length > 0 ? `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:12px 18px;margin-bottom:16px"><div style="font-weight:700;color:var(--amber);font-size:13px;margin-bottom:8px">⚡ Actions prioritaires du jour</div>${_dailyActs.map(a => `<div style="font-size:12px;padding:4px 0">${a.priority==='red'?'🔴':a.priority==='warn'?'🟡':'ℹ️'} ${a.msg}</div>`).join('')}</div>` : ''}
+  ${_urgentAlerts.length > 0 ? `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px"><span style="font-size:18px">🚨</span><strong style="color:var(--red);flex:1">${_urgentAlerts.length} agent(s) en alerte critique : ${_urgentAlerts.map(a=>a.ag.name).join(', ')}</strong><button onclick="Router.go('ad-alerts')" style="padding:5px 14px;background:var(--red);border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:600;font-size:12px">Voir alertes</button></div>` : ''}
+  
     <div class="grid-6 mb20">
       <div class="kpi-card kpi-acc"><div class="kpi-label">Agents actifs</div><div class="kpi-value">${DB.data.agents.filter(a=>a.active!==false).length}</div></div>
       <div class="kpi-card kpi-cyan"><div class="kpi-label">Total équipe</div><div class="kpi-value" style="color:var(--cyan)">${U.hms(tH*3600)}</div></div>
@@ -1940,122 +2553,257 @@ _deleteRecord(agId, date) {
 // ADMIN — IMPORT VICIDIAL
 // ─────────────────────────────────────────────────────────────────────
 'ad-import'() {
-  document.getElementById('view').innerHTML=`
-    <div class="info-box">
-      <strong style="color:var(--acc)">Import Vicidial</strong> — Accepte CSV, TXT, XLSX. Logique fill-down appliquée automatiquement.<br>
-      Colonnes lues : Col 0=Nom, Col 1=ID agent, Col 4=Date, Col 5=Appels, Col 9=Attente, Col 11=Communication, Col 13=Qualification, Dernière col=SALE.
-    </div>
-    <div class="code-block">Format attendu (séparateur , ou ; ou TAB) :
-"Nom agent","ID","...","...","YYYY-MM-DD","Appels","...","...","...","Attente","...","Comm.","...","Qual.","...","SALE"</div>
+  const hist = (DB.data.importHistory||[]).slice(0,10);
+  const storStats = Storage.getStats();
+  const period = DB.data.period;
+  const periodLocked = PeriodEngine.isLocked(period);
+  const cm = DB.data.colMapping || {};
 
-    <div class="grid-2 mb20">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Glisser / Sélectionner un fichier</div><span class="badge badge-cyan">${DB.data.periods[DB.data.period]?.label}</span></div>
-        <div class="drop-zone" id="dz">
-          <input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="Views._handleFile(this.files[0])">
-          <div style="font-size:36px;margin-bottom:10px">📂</div>
-          <div style="font-size:14px;font-weight:600;margin-bottom:4px">Glisser-déposer ou cliquer</div>
-          <div style="font-size:11.5px;color:var(--txt3)">AGENT_PERFORMANCE_DETAIL.csv · .txt · .xlsx</div>
-        </div>
-        <div id="imp-status" style="margin-top:10px;font-size:11.5px;color:var(--txt3)"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Coller les données brutes</div></div>
-        <textarea class="form-control" id="imp-raw" style="min-height:200px" placeholder="Collez ici le contenu brut du rapport Vicidial…"></textarea>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('imp-raw').value=''">Effacer</button>
-          <button class="btn btn-primary btn-sm" onclick="Views._doImportText()">Analyser &amp; Importer</button>
-        </div>
-      </div>
-    </div>
-    <div id="imp-result"></div>
-  `;
+  document.getElementById('view').innerHTML = `
+  <div class="info-box" style="${storStats.pct > 70 ? 'border-color:var(--amber)' : ''}">
+    <strong>Stockage :</strong> ${storStats.usedMB} Mo / ~5 Mo (${storStats.pct}%) — Restant : ${storStats.remaining} Mo
+    ${storStats.pct > 70 ? '<br><strong style="color:var(--amber)">⚠ Approche limite — exportez une sauvegarde.</strong>' : ''}
+    <button onclick="Storage.exportJSON()" style="margin-left:10px;padding:3px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);cursor:pointer;font-size:11px">📦 Sauvegarde JSON</button>
+    <label style="margin-left:6px;padding:3px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);cursor:pointer;font-size:11px">
+      📂 Restaurer JSON<input type="file" accept=".json" style="display:none" onchange="Storage.importJSON(this.files[0])">
+    </label>
+  </div>
 
-  const dz=document.getElementById('dz');
-  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
-  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
-  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])Views._handleFile(e.dataTransfer.files[0]);});
+  ${periodLocked ? '<div class="info-box warn" style="border-color:var(--amber)">⚠ Période gelée — import désactivé pour cette période.</div>' : ''}
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Import Vicidial</div>
+        <span class="kpi-badge kpi-badge-blue">${DB.data.periods[period]?.label||period}</span>
+      </div>
+      ${!periodLocked ? `
+      <div class="drop-zone" id="fdrop" style="border:2px dashed var(--border2);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:.2s;position:relative">
+        <input type="file" accept=".csv,.txt" onchange="Views._handleFile(this.files[0])" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+        <div style="font-size:30px;margin-bottom:8px">📂</div>
+        <div style="font-weight:600;margin-bottom:4px">Glisser-déposer ou cliquer</div>
+        <div style="font-size:11px;color:var(--text-dim)">AGENT_PERFORMANCE_DETAIL*.csv / *.txt</div>
+      </div>
+      <div style="text-align:center;margin:10px 0;color:var(--text-dim);font-size:12px">— ou coller les données —</div>
+      <textarea id="imp-raw" style="width:100%;height:110px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:10px;font-family:monospace;font-size:11px;resize:vertical" placeholder="Coller ici les lignes de l'export Vicidial…"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="document.getElementById('imp-raw').value=''" style="padding:7px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);cursor:pointer;font-size:12px">Effacer</button>
+        <button onclick="Views._doImportText()" style="padding:7px 14px;background:var(--accent);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;font-weight:600">🔍 Analyser &amp; Prévisualiser</button>
+      </div>
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:12px;color:var(--text-dim);font-weight:600">⚙ Mapping colonnes (avancé)</summary>
+        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${Object.entries(cm).map(([k,v]) =>
+            '<div><label style="font-size:10px;font-weight:700;color:var(--text-dim);display:block;margin-bottom:3px;text-transform:uppercase">' + k + '</label>' +
+            '<input type="number" id="cm_' + k + '" value="' + v + '" min="0" max="30" style="width:70px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 8px;font-size:12px"></div>'
+          ).join('')}
+        </div>
+        <button onclick="Views._saveColMapping()" style="margin-top:8px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);cursor:pointer;font-size:11px">Enregistrer mapping</button>
+      </details>
+      ` : '<div style="text-align:center;padding:20px;color:var(--text-dim)">Import désactivé (période gelée)</div>'}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Historique imports</div>
+        <span style="font-size:12px;color:var(--text-dim)">${hist.length} dernier(s)</span>
+      </div>
+      ${!hist.length ? '<div style="text-align:center;padding:20px;color:var(--text-dim)">Aucun import enregistré.</div>' :
+        hist.map(imp => `
+        <div style="padding:9px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-weight:600">${imp.source||'—'}</div>
+              <div style="color:var(--text-dim);font-size:11px">${new Date(imp.ts).toLocaleString('fr-FR')} · ${imp.actor}</div>
+            </div>
+            <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+              <span style="background:rgba(16,185,129,.15);color:var(--green);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700">${imp.stats.parsed} lignes</span>
+              <span style="background:var(--bg3);padding:2px 7px;border-radius:10px;font-size:10px">${imp.stats.agents} agents</span>
+              ${imp.canUndo && (Date.now()-new Date(imp.ts).getTime())<600000 ?
+                `<button data-undo-id="${imp.id}" style="padding:2px 8px;background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:5px;cursor:pointer;font-size:10px">↩ Annuler</button>` : ''}
+            </div>
+          </div>
+          <div style="color:var(--text-dim);margin-top:3px;font-size:11px">
+            ${imp.stats.newEntries} nouvelles · ${imp.stats.updates} MàJ · ${imp.stats.newAgents} créés
+            ${imp.stats.warningsCount > 0 ? '· <span style="color:var(--amber)">' + imp.stats.warningsCount + ' alertes</span>' : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>
+  <div id="imp-preview"></div>`;
+
+  const drop = document.getElementById('fdrop');
+  if (drop) {
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor='var(--accent)'; drop.style.background='rgba(79,126,248,.08)'; });
+    drop.addEventListener('dragleave', () => { drop.style.borderColor=''; drop.style.background=''; });
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.style.borderColor=''; drop.style.background=''; if(e.dataTransfer.files[0]) Views._handleFile(e.dataTransfer.files[0]); });
+  }
 },
 
 _handleFile(file) {
   if (!file) return;
-  document.getElementById('imp-status').textContent=`Lecture de "${file.name}"…`;
-  const reader=new FileReader();
-  if (file.name.match(/\.xlsx?$/i)) {
-    reader.onload=e=>{
-      try {
-        const wb=XLSX.read(e.target.result,{type:'binary'});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const csv=XLSX.utils.sheet_to_csv(ws);
-        Views._processImport(csv,file.name);
-      } catch(err) { U.toast('Erreur lecture Excel: '+err.message,'error'); }
-    };
-    reader.readAsBinaryString(file);
-  } else {
-    reader.onload=e=>Views._processImport(e.target.result,file.name);
-    reader.readAsText(file,'UTF-8');
-  }
+  const reader = new FileReader();
+  reader.onload = e => Views._showImportPreview(e.target.result, file.name);
+  reader.onerror = () => U.toast('Erreur lecture fichier', 'error');
+  reader.readAsText(file, 'UTF-8');
 },
 
 _doImportText() {
-  const raw=(document.getElementById('imp-raw')||{}).value||'';
-  if(!raw.trim()){U.toast('Aucune donnée à analyser','error');return;}
-  Views._processImport(raw,'saisie manuelle');
+  const raw = document.getElementById('imp-raw')?.value || '';
+  if (!raw.trim()) { U.toast('Aucune donnée à analyser', 'error'); return; }
+  Views._showImportPreview(raw, 'Collage manuel');
 },
 
-_processImport(text, src) {
-  const entries=U.parseVicidial(text);
-  if(!entries.length){
-    document.getElementById('imp-result').innerHTML='<div class="info-box warning">Aucune ligne valide détectée. Vérifiez le format du fichier.</div>';
-    return;
-  }
-  let added=0, updated=0, latestDate='';
-  const newAgents=[];
-  entries.forEach(e=>{
-    const{agId,agName,date,comm,wait,qual,calls,sales}=e;
-    if(date>latestDate)latestDate=date;
-    let ag=DB.data.agents.find(a=>a.viciId===agId||a.id===agId);
-    if(!ag){
-      ag={id:agId,viciId:agId,name:agName,pw:'0000',color:COLORS[DB.data.agents.length%COLORS.length],salBase:0,salType:'AE',hpd:6,active:true};
-      DB.data.agents.push(ag);
-      newAgents.push(ag.name);
-    }
-    if(!DB.data.records[ag.id])DB.data.records[ag.id]=[];
-    const ex=DB.data.records[ag.id].find(r=>r.date===date&&r.period===DB.data.period);
-    const entry={period:DB.data.period,date,comm,wait,qual,calls,sales,mtg:ex?.mtg||0};
-    if(ex){Object.assign(ex,entry);updated++;}else{DB.data.records[ag.id].push(entry);added++;}
+_saveColMapping() {
+  const keys = Object.keys(DB.data.colMapping||{});
+  keys.forEach(k => {
+    const el = document.getElementById('cm_' + k);
+    if (el) DB.data.colMapping[k] = parseInt(el.value)||0;
   });
-  DB.data.lastImport={date:latestDate||U.today(),period:DB.data.period,count:added+updated,agents:new Set(entries.map(e=>e.agId)).size};
   DB.save();
-  DB.log(Auth.cur.id,'Import Vicidial',`${added+updated} lignes — ${src}`);
-  U.updateBanner();
-  const st=document.getElementById('imp-status');
-  if(st)st.textContent=`Source : "${src}"`;
-  const preview=entries.slice(0,10);
-  document.getElementById('imp-result').innerHTML=`
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Résultat de l'import</div>
-        <div style="display:flex;gap:7px"><span class="badge badge-green">✓ ${added} nouvelles</span><span class="badge badge-acc">↺ ${updated} mises à jour</span>${newAgents.length?`<span class="badge badge-purple">${newAgents.length} agents créés</span>`:''}</div>
-      </div>
-      ${newAgents.length?`<div class="info-box success" style="font-size:11.5px">Nouveaux agents créés : ${newAgents.join(', ')}. Pensez à compléter leurs profils dans "Gestion agents".</div>`:''}
-      <div class="table-wrap"><table>
-        <thead><tr><th>Agent</th><th>Date</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amber)">Attente</th><th style="color:var(--purple)">Qual. (cap)</th><th>Appels</th><th style="color:var(--red)">RDV</th><th style="color:var(--orange)">TMC</th></tr></thead>
-        <tbody>${preview.map(p=>`<tr>
-          <td class="text-cell">${p.agName}</td><td class="text-cell">${U.fmtDate(p.date)}</td>
-          <td style="color:var(--acc)">${U.hms(p.comm)}</td><td style="color:var(--amber)">${U.hms(p.wait)}</td>
-          <td style="color:var(--purple)">${U.hms(Math.min(p.qual,QUAL_CAP))}${p.qual>QUAL_CAP?`<span style="color:var(--red);font-size:9px"> +${U.hms(p.qual-QUAL_CAP)}</span>`:''}</td>
-          <td>${p.calls}</td><td style="color:var(--red)">${p.sales}</td><td style="color:var(--orange)">${U.mmss(U.tmc(p.comm,p.calls))}</td>
-        </tr>`).join('')}
-        ${entries.length>10?`<tr><td colspan="8" style="text-align:center;color:var(--txt3);padding:8px">… et ${entries.length-10} autres lignes</td></tr>`:''}
-        </tbody>
-      </table></div>
-    </div>`;
-  U.toast(`${added+updated} lignes importées avec succès`,'success');
+  U.toast('Mapping colonnes sauvegardé', 'success');
 },
-// ─────────────────────────────────────────────────────────────────────
-// ADMIN — MEETINGS
-// ─────────────────────────────────────────────────────────────────────
+
+_showImportPreview(text, sourceName) {
+  Views._importPendingText   = text;
+  Views._importPendingSource = sourceName;
+  const report  = ImportEngine.parse(text, DB.data.colMapping);
+  const s       = report.stats;
+  const preview = report.entries.slice(0, 15);
+
+  let html = '<div class="card">';
+  html += '<div class="card-header"><div class="card-title">Prévisualisation — ' + sourceName + '</div><div style="display:flex;gap:6px">';
+  html += '<span style="background:rgba(16,185,129,.15);color:var(--green);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">✓ ' + s.parsed + ' valides</span>';
+  if (s.newEntries) html += '<span style="background:rgba(79,126,248,.15);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:10px">' + s.newEntries + ' nouvelles</span>';
+  if (s.updates)    html += '<span style="background:var(--bg3);padding:2px 8px;border-radius:10px;font-size:10px">' + s.updates + ' MàJ</span>';
+  if (s.newAgents)  html += '<span style="background:rgba(167,139,250,.15);color:#a78bfa;padding:2px 8px;border-radius:10px;font-size:10px">+' + s.newAgents + ' agents</span>';
+  if (s.errorsCount)html += '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:10px;font-size:10px">' + s.errorsCount + ' erreurs</span>';
+  html += '</div></div>';
+
+  if (report.errors.length)   html += '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px"><strong>Erreurs (' + report.errors.length + '):</strong><br>' + report.errors.slice(0,5).map(function(e){return '• L.' + e.line + ': ' + e.msg;}).join('<br>') + '</div>';
+  if (report.warnings.length) html += '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px"><strong>Alertes (' + report.warnings.length + '):</strong><br>' + report.warnings.slice(0,3).map(function(w){return '• L.' + w.line + ': ' + w.msg;}).join('<br>') + '</div>';
+
+  html += '<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr>';
+  ['Agent','Date','Comm.','Attente','Qual.(cap)','Appels','RDV','TMC','Statut'].forEach(function(h){ html += '<th style="text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text-dim);font-size:10px;text-transform:uppercase">' + h + '</th>'; });
+  html += '</tr></thead><tbody>';
+  preview.forEach(function(p) {
+    html += '<tr>';
+    html += '<td style="padding:7px 10px;font-weight:600">' + p.agName + '</td>';
+    html += '<td style="padding:7px 10px;font-family:monospace">' + U.fmtDate(p.date) + '</td>';
+    html += '<td style="padding:7px 10px;font-family:monospace;color:var(--accent)">' + U.hms(p.comm) + '</td>';
+    html += '<td style="padding:7px 10px;font-family:monospace;color:var(--amber)">' + U.hms(p.wait) + '</td>';
+    var qp = Math.min(p.qual, QUAL_CAP);
+    html += '<td style="padding:7px 10px;font-family:monospace;color:#a78bfa">' + U.hms(qp) + (p.qual > QUAL_CAP ? '<span style="color:var(--red);font-size:9px"> +' + U.hms(p.qual-QUAL_CAP) + '</span>' : '') + '</td>';
+    html += '<td style="padding:7px 10px;font-family:monospace">' + p.calls + '</td>';
+    html += '<td style="padding:7px 10px;font-family:monospace;color:var(--red)">' + p.sales + '</td>';
+    html += '<td style="padding:7px 10px;font-family:monospace;color:#f97316">' + U.mmss(p.tmc) + '</td>';
+    html += '<td style="padding:7px 10px"><span style="padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;background:' + (p.isNew ? 'rgba(16,185,129,.15)' : 'rgba(79,126,248,.15)') + ';color:' + (p.isNew ? 'var(--green)' : 'var(--accent)') + '">' + (p.isNew ? 'Nouvelle' : 'MàJ') + '</span></td>';
+    html += '</tr>';
+  });
+  if (s.parsed > 15) html += '<tr><td colspan="9" style="padding:7px;text-align:center;color:var(--text-dim)">… et ' + (s.parsed-15) + ' autres lignes</td></tr>';
+  html += '</tbody></table></div>';
+
+  if (s.parsed > 0) {
+    html += '<div style="display:flex;gap:10px;align-items:center">';
+    html += '<button id="btn-imp-ok" style="padding:9px 18px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-weight:700;cursor:pointer;font-size:13px">✓ Valider et Importer (' + s.parsed + ' lignes)</button>';
+    html += '<button id="btn-imp-cancel" style="padding:9px 16px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);cursor:pointer;font-size:12px">Annuler</button>';
+    if (s.warningsCount > 0) html += '<span style="color:var(--amber);font-size:12px">⚠ ' + s.warningsCount + ' alertes</span>';
+    html += '</div>';
+  } else {
+    html += '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;font-size:12px">Aucune ligne valide. Vérifiez le format du fichier.</div>';
+  }
+  html += '</div>';
+
+  var el = document.getElementById('imp-preview');
+  el.innerHTML = html;
+  var btnOk = document.getElementById('btn-imp-ok');
+  if (btnOk) btnOk.addEventListener('click', function(){ Views._confirmImport(); });
+  var btnX = document.getElementById('btn-imp-cancel');
+  if (btnX) btnX.addEventListener('click', function(){ document.getElementById('imp-preview').innerHTML = ''; });
+},
+
+_confirmImport() {
+  var text       = Views._importPendingText;
+  var sourceName = Views._importPendingSource || 'Import';
+  if (!text) { U.toast('Aucune donnée en attente', 'error'); return; }
+  var report = ImportEngine.parse(text, DB.data.colMapping);
+  if (!report.entries.length) { U.toast('Aucune ligne valide', 'error'); return; }
+  ImportEngine.apply(report, sourceName);
+  Views._importPendingText   = null;
+  Views._importPendingSource = null;
+  var li = DB.data.lastImport;
+  if (li) {
+    var de = document.getElementById('upd-date');   if (de) { de.textContent = U.fmtDate(li.date); de.style.color = 'var(--cyan)'; }
+    var pe = document.getElementById('upd-period'); if (pe) pe.textContent = '— ' + ((DB.data.periods[li.period] && DB.data.periods[li.period].label) || li.period);
+    var ce = document.getElementById('upd-count');  if (ce) ce.textContent = li.count + ' lignes · ' + li.agents + ' agents';
+    var dot= document.getElementById('b-dot');      if (dot) dot.style.background = 'var(--green)';
+  }
+  U.toast('Import validé : ' + report.stats.parsed + ' lignes importées', 'success');
+  Views['ad-import']();
+},
+
+_previewMeeting() {
+  const agIds = [...document.querySelectorAll('[id^="chk_"]:checked')].map(c=>c.value);
+  const date  = document.getElementById('m-date')?.value;
+  const dur   = parseInt(document.getElementById('m-dur')?.value);
+  const type  = document.getElementById('m-type')?.value;
+  const justif= document.getElementById('m-justif')?.value;
+
+  if (!agIds.length) { U.toast('Sélectionnez au moins un agent', 'error'); return; }
+  if (!date || isNaN(dur) || dur <= 0) { U.toast('Date et durée requises', 'error'); return; }
+  if (!justif || justif.trim().length < 5) { U.toast('Justification requise (min 5 caractères)', 'error'); return; }
+
+  // Vérifier doublons
+  const dupes = MeetingEngine.checkDuplicate(agIds, date, type, dur);
+  // Calcul impact paie
+  const impacts = MeetingEngine.calcImpact(agIds, dur);
+
+  const dupesHtml = dupes.length ? `<div class="info-box warn" style="margin-bottom:10px">⚠ Doublons détectés :<br>${dupes.map(d=>`• ${d}`).join('<br>')}</div>` : '';
+  const impactHtml = impacts.length ? `
+    <div class="info-box" style="margin-bottom:10px">
+      <strong>Impact sur la rémunération :</strong>
+      ${impacts.map(i => `<div style="margin-top:6px;font-size:12px">
+        <strong>${i.name}</strong> : +${i.addH} →
+        ${i.before.pct}% (${i.before.earned.toLocaleString('fr-FR')} MAD) →
+        <strong style="color:var(--green)">${i.after.pct}% (${i.after.earned.toLocaleString('fr-FR')} MAD)</strong>
+        <span style="color:var(--green)">+${i.gain.toLocaleString('fr-FR')} MAD</span>
+      </div>`).join('')}
+    </div>` : '';
+
+  document.getElementById('mtg-impact-preview').innerHTML = `
+    ${dupesHtml}
+    ${impactHtml}
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="Views._saveMeeting()">✓ Confirmer &amp; Enregistrer</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('mtg-impact-preview').innerHTML=''">Annuler</button>
+    </div>`;
+},
+
+_saveMeeting() {
+  const agIds = [...document.querySelectorAll('[id^="chk_"]:checked')].map(c=>c.value);
+  const date  = document.getElementById('m-date')?.value;
+  const dur   = parseInt(document.getElementById('m-dur')?.value);
+  const type  = document.getElementById('m-type')?.value;
+  const host  = document.getElementById('m-host')?.value;
+  const note  = document.getElementById('m-note')?.value;
+  const justif= document.getElementById('m-justif')?.value;
+  const id = MeetingEngine.save(agIds, date, dur, type, host, note, justif);
+  if (id) {
+    U.toast(`Réunion enregistrée (${agIds.length} agent(s))`, 'success');
+    Views['ad-meetings']();
+  }
+},
+
+_deleteMeetingPrompt(meetingId) {
+  const reason = prompt('Raison de la suppression (obligatoire, min 5 caractères) :');
+  if (!reason) return;
+  if (MeetingEngine.delete(meetingId, reason)) {
+    U.toast('Réunion supprimée', 'success');
+    Views['ad-meetings']();
+  }
+},
+
+
 'ad-meetings'() {
   const logs=(DB.data.meetings||[]).filter(m=>m.period===DB.data.period).sort((a,b)=>b.date.localeCompare(a.date));
   const types={coaching:'Coaching',decorticage:'Décorticage appels',reunion:'Réunion équipe',formation:'Formation'};
@@ -2158,7 +2906,7 @@ _delMeeting(idx) {
 
 // ─────────────────────────────────────────────────────────────────────
 // ADMIN — AGENTS MANAGEMENT
-// ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────,
 'ad-agents'() {
   const sorted=[...DB.data.agents].map(ag=>({ag,s:U.calc(ag.id,DB.data.period)})).sort((a,b)=>b.s.hours-a.s.hours);
   document.getElementById('view').innerHTML=`
@@ -2257,61 +3005,117 @@ _saveEditAgent(id) {
 // ADMIN — PERIODS
 // ─────────────────────────────────────────────────────────────────────
 'ad-periods'() {
-  const renderTable=()=>{
-    const rows=Object.entries(DB.data.periods).map(([k,p])=>`<tr>
-      <td class="bold-cell">${p.label}</td>
-      <td style="font-family:var(--font-mono)">${k}</td>
-      <td style="font-family:var(--font-mono);color:var(--cyan)">${p.goalH}h</td>
-      <td>${p.days} jours</td>
-      <td>${p.hpd||6}h/jour</td>
-      <td>${k===DB.data.period?'<span class="badge badge-green">Active</span>':''}</td>
-      <td>
-        <div style="display:flex;gap:7px">
-          <button class="btn btn-ghost btn-sm" onclick="Views._editPeriod('${k}')">Modifier</button>
-          <button class="btn btn-danger btn-sm" onclick="Views._delPeriod('${k}')">Supprimer</button>
-        </div>
-      </td>
-    </tr>`).join('');
+  const renderTable = () => {
+    const STATUS_LABELS = { draft:'Brouillon', validated:'✓ Validée', exported:'📤 Exportée' };
+    const STATUS_COLORS = { draft:'', validated:'badge-green', exported:'badge-blue' };
 
-    const agProgress=Object.entries(DB.data.periods).map(([k])=>`<tr>
-      <td class="bold-cell">${DB.data.periods[k].label}</td>
-      ${DB.data.agents.map(ag=>{const s=U.calc(ag.id,k);return`<td><span class="badge ${U.pbadge(s.pct)}">${U.n(s.pct,0)}%</span></td>`;}).join('')}
-    </tr>`).join('');
+    const rows = Object.entries(DB.data.periods).map(([k,p]) => {
+      const status = p.status || 'draft';
+      const locked = PeriodEngine.isLocked(k);
+      return `<tr>
+        <td style="font-weight:700">${p.label}</td>
+        <td style="font-family:monospace">${k}</td>
+        <td style="color:var(--cyan);font-weight:700">${p.goalH}h</td>
+        <td>${p.days} jours</td>
+        <td>${p.hpd||6}h/j</td>
+        <td><span class="badge ${STATUS_COLORS[status]||''}">${STATUS_LABELS[status]||status}</span></td>
+        <td style="font-size:11px;color:var(--text-dim)">${p.validatedAt ? 'Clôturée le ' + U.fmtDate(p.validatedAt.split('T')[0]) + ' par ' + (p.validatedBy||'?') : '—'}</td>
+        <td>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            ${!locked ? `<button class="btn btn-ghost btn-sm" onclick="Views._editPeriod('${k}')">Modifier</button>` : ''}
+            ${status === 'draft' ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green)" onclick="PeriodEngine.validate('${k}')">🔒 Clôturer</button>` : ''}
+            ${!locked ? `<button class="btn btn-danger btn-sm" onclick="Views._delPeriod('${k}')">Suppr.</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
 
-    return`
-      <div class="card mb20">
-        <div class="card-header"><div class="card-title">Périodes configurées</div><button class="btn btn-primary btn-sm" onclick="Views._addPeriod()">+ Nouvelle période</button></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Période</th><th>Code</th><th>Objectif</th><th>Jours ouvrés</th><th>H/jour</th><th>Statut</th><th>Actions</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>
+    // Tableau avancement par période
+    const agProg = Object.entries(DB.data.periods).map(([k,p]) =>
+      `<tr><td style="font-weight:700">${p.label}</td>
+      ${DB.data.agents.filter(a=>a.active!==false).map(ag => {
+        const s = U.calc(ag.id, k);
+        const pct = s ? s.pct : 0;
+        return `<td><span class="badge ${U.pbadge(pct)}">${pct.toFixed(0)}%</span></td>`;
+      }).join('')}
+      </tr>`
+    ).join('');
+
+    // Historique modifications contrat
+    const contractHist = (DB.data.contractHistory||[]).slice(0,20);
+
+    return `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Périodes configurées</div>
+        <button class="btn btn-primary btn-sm" onclick="Views._addPeriod()">+ Nouvelle période</button>
       </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Avancement par période &amp; agent</div></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Période</th>${DB.data.agents.map(ag=>`<th style="color:${ag.color||'var(--acc)'}">${ag.name.split(' ')[0]}</th>`).join('')}</tr></thead>
-          <tbody>${agProgress}</tbody>
-        </table></div>
-      </div>`;
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Période</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Code</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Objectif</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Jours</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">H/jour</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Statut</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Clôture</th>
+            <th style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Actions</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">Avancement par période &amp; agent</div>
+      <div style="overflow-x:auto">
+        <table style="border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);color:var(--text-dim)">Période</th>
+            ${DB.data.agents.filter(a=>a.active!==false).map(ag=>
+              `<th style="padding:8px;border-bottom:1px solid var(--border);color:${ag.color||'var(--blue)'}">${ag.name.split(' ')[0]}</th>`
+            ).join('')}
+          </tr></thead>
+          <tbody>${agProg}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${contractHist.length > 0 ? `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px">Historique modifications contrat/salaire</div>
+      <div style="font-size:12px">
+        ${contractHist.map(h => `<div style="padding:7px 0;border-bottom:1px solid var(--border);display:flex;gap:12px">
+          <span style="color:var(--text-dim);font-family:monospace;width:150px;flex-shrink:0">${new Date(h.ts).toLocaleString('fr-FR')}</span>
+          <span style="color:var(--blue)">${h.actor}</span>
+          <span>${DB.data.agents.find(a=>a.id===h.agId)?.name||h.agId}</span>
+          <span style="color:var(--text-dim)">${h.field} : ${h.oldVal} → <strong>${h.newVal}</strong></span>
+          <span style="color:var(--text-dim)">Période: ${h.period}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}`;
   };
-  document.getElementById('view').innerHTML=`<div id="per-body">${renderTable()}</div>`;
-  Views._reRenderPeriods=renderTable;
+
+  document.getElementById('view').innerHTML = `<div id="per-body">${renderTable()}</div>`;
+  Views._reRenderPeriods = renderTable;
 },
 
 _addPeriod() {
-  const o=document.createElement('div');o.className='modal-overlay';
-  o.innerHTML=`<div class="modal">
-    <div class="modal-title">Nouvelle période</div>
+  const o = document.createElement('div'); o.className = 'modal-overlay';
+  o.innerHTML = `<div class="modal">
+    <div style="font-size:17px;font-weight:700;margin-bottom:4px">Nouvelle période</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:20px">Configurez les paramètres de la nouvelle période mensuelle.</div>
     <div class="grid-2">
-      <div class="form-group"><label class="form-label">Code (ex: 2026-07)</label><input class="form-control" id="pp-k" placeholder="2026-07"></div>
-      <div class="form-group"><label class="form-label">Label</label><input class="form-control" id="pp-l" placeholder="Juillet 2026"></div>
+      <div class="form-group"><label class="form-label">Code (ex: 2026-06)</label><input class="form-control" id="pp-k" placeholder="2026-06"></div>
+      <div class="form-group"><label class="form-label">Label</label><input class="form-control" id="pp-l" placeholder="Juin 2026"></div>
     </div>
     <div class="grid-2">
       <div class="form-group"><label class="form-label">Objectif heures</label><input type="number" class="form-control" id="pp-h" placeholder="132"></div>
       <div class="form-group"><label class="form-label">Jours ouvrés</label><input type="number" class="form-control" id="pp-d" placeholder="22"></div>
     </div>
-    <div class="form-group"><label class="form-label">Heures / jour accord</label><input type="number" class="form-control" id="pp-hd" value="6" placeholder="6"></div>
-    <div style="display:flex;gap:10px;margin-top:8px">
+    <div class="form-group"><label class="form-label">H/jour accord</label><input type="number" class="form-control" id="pp-hd" value="6" placeholder="6"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
       <button class="btn btn-ghost" style="flex:1" onclick="this.closest('.modal-overlay').remove()">Annuler</button>
       <button class="btn btn-primary" style="flex:1" onclick="Views._confirmAddPeriod()">Créer</button>
     </div>
@@ -2320,35 +3124,35 @@ _addPeriod() {
 },
 
 _confirmAddPeriod() {
-  const k=document.getElementById('pp-k')?.value.trim();
-  const l=document.getElementById('pp-l')?.value.trim();
-  const h=parseFloat(document.getElementById('pp-h')?.value);
-  const d=parseInt(document.getElementById('pp-d')?.value);
-  const hd=parseFloat(document.getElementById('pp-hd')?.value)||6;
-  if(!k||!l||!h||!d)return U.toast('Tous les champs sont requis','error');
-  if(DB.data.periods[k])return U.toast('Ce code de période existe déjà','error');
-  DB.data.periods[k]={label:l,goalH:h,days:d,hpd:hd};
-  const sel=document.getElementById('period-selector');
-  sel.innerHTML=Object.entries(DB.data.periods).map(([kk,v])=>`<option value="${kk}"${kk===DB.data.period?' selected':''}>${v.label}</option>`).join('');
-  DB.save();
-  DB.log(Auth.cur.id,'Création période',`${k}: ${l}`);
+  const k = document.getElementById('pp-k')?.value.trim();
+  const l = document.getElementById('pp-l')?.value.trim();
+  const h = parseFloat(document.getElementById('pp-h')?.value);
+  const d = parseInt(document.getElementById('pp-d')?.value);
+  const hd = parseFloat(document.getElementById('pp-hd')?.value) || 6;
+  if (!k||!l||!h||!d) { U.toast('Tous les champs requis', 'error'); return; }
+  if (DB.data.periods[k]) { U.toast('Code période déjà utilisé', 'error'); return; }
+  DB.data.periods[k] = { label:l, goalH:h, days:d, hpd:hd, status:'draft' };
+  const sel = document.getElementById('period-sel');
+  if (sel) { sel.innerHTML = Object.entries(DB.data.periods).map(([kk,v])=>`<option value="${kk}">${v.label}</option>`).join(''); sel.value = DB.data.period; }
+  DB.logAndSave(Auth.cur?.name, 'Création période', `${k} · ${l} · ${h}h · ${d}j`);
   document.querySelector('.modal-overlay')?.remove();
-  U.toast(`Période ${l} créée`,'success');
-  document.getElementById('per-body').innerHTML=Views._reRenderPeriods();
+  U.toast(`Période ${l} créée`, 'success');
+  document.getElementById('per-body').innerHTML = Views._reRenderPeriods();
 },
 
 _editPeriod(k) {
-  const p=DB.data.periods[k];if(!p)return;
-  const o=document.createElement('div');o.className='modal-overlay';
-  o.innerHTML=`<div class="modal">
-    <div class="modal-title">Modifier — ${p.label}</div>
+  const p = DB.data.periods[k]; if (!p) return;
+  if (PeriodEngine.isLocked(k)) { U.toast('Période gelée — modification impossible', 'error'); return; }
+  const o = document.createElement('div'); o.className = 'modal-overlay';
+  o.innerHTML = `<div class="modal">
+    <div style="font-size:17px;font-weight:700;margin-bottom:18px">Modifier — ${p.label}</div>
     <div class="form-group"><label class="form-label">Label</label><input class="form-control" id="ep-l" value="${p.label}"></div>
     <div class="grid-2">
       <div class="form-group"><label class="form-label">Objectif heures</label><input type="number" class="form-control" id="ep-h" value="${p.goalH}"></div>
       <div class="form-group"><label class="form-label">Jours ouvrés</label><input type="number" class="form-control" id="ep-d" value="${p.days}"></div>
     </div>
     <div class="form-group"><label class="form-label">H/jour accord</label><input type="number" class="form-control" id="ep-hd" value="${p.hpd||6}"></div>
-    <div style="display:flex;gap:10px;margin-top:8px">
+    <div style="display:flex;gap:10px;margin-top:16px">
       <button class="btn btn-ghost" style="flex:1" onclick="this.closest('.modal-overlay').remove()">Annuler</button>
       <button class="btn btn-primary" style="flex:1" onclick="Views._confirmEditPeriod('${k}')">Enregistrer</button>
     </div>
@@ -2357,109 +3161,187 @@ _editPeriod(k) {
 },
 
 _confirmEditPeriod(k) {
-  const p=DB.data.periods[k];if(!p)return;
-  p.label = document.getElementById('ep-l')?.value.trim()||p.label;
-  p.goalH = parseFloat(document.getElementById('ep-h')?.value)||p.goalH;
-  p.days  = parseInt(document.getElementById('ep-d')?.value)||p.days;
-  p.hpd   = parseFloat(document.getElementById('ep-hd')?.value)||p.hpd||6;
-  const sel=document.getElementById('period-selector');
-  sel.innerHTML=Object.entries(DB.data.periods).map(([kk,v])=>`<option value="${kk}"${kk===DB.data.period?' selected':''}>${v.label}</option>`).join('');
-  DB.save();
-  DB.log(Auth.cur.id,'Modification période',`${k}: goalH=${p.goalH}`);
+  const p = DB.data.periods[k]; if (!p) return;
+  p.label = document.getElementById('ep-l')?.value.trim() || p.label;
+  p.goalH = parseFloat(document.getElementById('ep-h')?.value) || p.goalH;
+  p.days  = parseInt(document.getElementById('ep-d')?.value) || p.days;
+  p.hpd   = parseFloat(document.getElementById('ep-hd')?.value) || p.hpd || 6;
+  const sel = document.getElementById('period-sel');
+  if (sel) { sel.innerHTML = Object.entries(DB.data.periods).map(([kk,v])=>`<option value="${kk}">${v.label}</option>`).join(''); sel.value = DB.data.period; }
+  DB.logAndSave(Auth.cur?.name, 'Modification période', `${k} · ${p.label} · ${p.goalH}h · ${p.days}j`);
   document.querySelector('.modal-overlay')?.remove();
-  U.toast('Période mise à jour','success');
-  document.getElementById('per-body').innerHTML=Views._reRenderPeriods();
+  U.toast('Période mise à jour', 'success');
+  document.getElementById('per-body').innerHTML = Views._reRenderPeriods();
 },
 
 _delPeriod(k) {
-  if(!confirm(`Supprimer la période ${DB.data.periods[k]?.label} ?`))return;
+  if (PeriodEngine.isLocked(k)) { U.toast('Période gelée — suppression impossible', 'error'); return; }
+  if (!confirm(`Supprimer la période ${DB.data.periods[k]?.label} ? Cette action est irréversible.`)) return;
+  DB.log(Auth.cur?.name, 'Suppression période', k);
   delete DB.data.periods[k];
-  if(DB.data.period===k)DB.data.period=Object.keys(DB.data.periods)[0]||'';
-  const sel=document.getElementById('period-selector');
-  sel.innerHTML=Object.entries(DB.data.periods).map(([kk,v])=>`<option value="${kk}"${kk===DB.data.period?' selected':''}>${v.label}</option>`).join('');
+  if (DB.data.period === k) DB.data.period = Object.keys(DB.data.periods)[0] || '';
+  const sel = document.getElementById('period-sel');
+  if (sel) { sel.innerHTML = Object.entries(DB.data.periods).map(([kk,v])=>`<option value="${kk}">${v.label}</option>`).join(''); sel.value = DB.data.period; }
   DB.save();
-  U.toast('Période supprimée','info');
-  document.getElementById('per-body').innerHTML=Views._reRenderPeriods();
+  U.toast('Période supprimée', 'info');
+  document.getElementById('per-body').innerHTML = Views._reRenderPeriods();
 },
 
-// ─────────────────────────────────────────────────────────────────────
-// ADMIN — EXPORT
-// ─────────────────────────────────────────────────────────────────────
 'ad-export'() {
-  const cfg=DB.data.periods[DB.data.period]||{};
-  document.getElementById('view').innerHTML=`
-    <div class="info-box">Tous les exports sont basés sur la période : <strong style="color:var(--acc)">${cfg.label||DB.data.period}</strong>. CSV avec BOM UTF-8 (compatible Excel).</div>
-    <div class="grid-3 mb20">
-      <div class="card" style="cursor:pointer" onclick="Views._exportTeamCSV()">
-        <div style="font-size:36px;margin-bottom:10px">📊</div>
-        <div class="card-title" style="margin-bottom:5px">Rapport équipe</div>
-        <div style="font-size:11.5px;color:var(--txt3)">Tous les agents — temps, progression, RDV, TMC, rémunération</div>
-        <button class="btn btn-primary btn-sm" style="margin-top:14px">Télécharger CSV</button>
+  const period = DB.data.period;
+  const cfg = DB.data.periods[period] || {};
+  const status = PeriodEngine.getStatus(period);
+  const STATUS_LABELS = { draft:'Brouillon', validated:'✓ Validée', exported:'📤 Exportée' };
+  const STATUS_COLORS = { draft:'', validated:'badge-green', exported:'badge-blue' };
+  const storStats = Storage.getStats();
+
+  document.getElementById('view').innerHTML = `
+  <!-- Statut période -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:15px;font-weight:700">Période : ${cfg.label||period}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:4px">
+          Statut : <span class="badge ${STATUS_COLORS[status]||''}">${STATUS_LABELS[status]||status}</span>
+          ${cfg.validatedAt ? `· Clôturée le ${U.fmtDate(cfg.validatedAt.split('T')[0])} par ${cfg.validatedBy||'?'}` : ''}
+          ${cfg.exportedAt ? `· Exportée le ${U.fmtDate(cfg.exportedAt.split('T')[0])}` : ''}
+        </div>
       </div>
-      <div class="card">
-        <div style="font-size:36px;margin-bottom:10px">👤</div>
-        <div class="card-title" style="margin-bottom:5px">Rapport individuel</div>
-        <select class="form-control" id="exp-ag-sel" style="margin-bottom:8px">${DB.data.agents.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
-        <button class="btn btn-primary btn-sm btn-full" onclick="Views._exportAgentCSV(document.getElementById('exp-ag-sel').value)">Télécharger CSV</button>
-      </div>
-      <div class="card" style="cursor:pointer" onclick="Views._exportMeetingsCSV()">
-        <div style="font-size:36px;margin-bottom:10px">📋</div>
-        <div class="card-title" style="margin-bottom:5px">Rapport réunions</div>
-        <div style="font-size:11.5px;color:var(--txt3)">Coaching, formations, décorticages — historique complet</div>
-        <button class="btn btn-green btn-sm" style="margin-top:14px">Télécharger CSV</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${status === 'draft' ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green)" onclick="PeriodEngine.validate('${period}')">🔒 Clôturer la période</button>` : ''}
+        <span style="font-size:11px;color:var(--text-dim)">Stockage: ${storStats.usedMB} Mo (${storStats.pct}%)</span>
+        <button class="btn btn-ghost btn-sm" onclick="Storage.exportJSON()">📦 Sauvegarde JSON</button>
       </div>
     </div>
-    ${typeof XLSX!=='undefined'?`<div class="card mb20">
-      <div class="card-header"><div class="card-title">Export comptable Excel (.xlsx)</div><span class="badge badge-green">SheetJS</span></div>
-      <div style="font-size:12.5px;color:var(--txt3);margin-bottom:14px">Fichier Excel avec onglets séparés Salariés / Auto-Entrepreneurs</div>
-      <button class="btn btn-primary" onclick="Views._exportXLSX()">⬇ Générer le fichier Excel comptable</button>
-    </div>`:''}
-    <div class="card">
-      <div class="card-header"><div class="card-title">Récapitulatif — ${cfg.label||DB.data.period}</div></div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Agent</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amber)">Attente</th><th style="color:var(--purple)">Qual.</th><th style="color:var(--green)">Réunions</th><th style="color:var(--cyan)">Total</th><th>%</th><th style="color:var(--red)">RDV</th><th>Taux RDV</th><th style="color:var(--orange)">TMC</th><th style="color:var(--green)">Gains MAD</th></tr></thead>
+  </div>
+
+  <!-- Contrôle avant export -->
+  ${status === 'draft' ? '<div class="info-box warn">⚠ Recommandé : clôturez la période avant export pour garantir l’intégrité.</div>' : ''}
+
+  <!-- Grille d'exports -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor=''">
+      <div style="font-size:28px;margin-bottom:10px">📊</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:5px">Rapport équipe CSV</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px">Tous les agents : temps, %, RDV, TMC, rémunération. Avec ID export.</div>
+      <button class="btn btn-primary btn-sm" onclick="ExportEngine.exportTeamCSV('${period}')">Télécharger CSV ↗</button>
+    </div>
+
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor=''">
+      <div style="font-size:28px;margin-bottom:10px">👤</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:5px">Relevé individuel CSV</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:8px">Détail journalier justificatif. Qual. brute vs retenue. ID export.</div>
+      <select class="form-control" id="exp-ag" style="margin-bottom:8px;font-size:12px">${DB.data.agents.filter(a=>a.active!==false).map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
+      <button class="btn btn-primary btn-sm" onclick="ExportEngine.exportDetailCSV(document.getElementById('exp-ag').value,'${period}')">Télécharger CSV ↗</button>
+    </div>
+
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.borderColor='var(--green)'" onmouseleave="this.style.borderColor=''">
+      <div style="font-size:28px;margin-bottom:10px">📋</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:5px">Rapport réunions CSV</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px">Coaching, formations, décorticages par agent et type.</div>
+      <button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green)" onclick="Views._exportMeetingsCSV()">Télécharger CSV ↗</button>
+    </div>
+
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.borderColor='var(--purple)'" onmouseleave="this.style.borderColor=''">
+      <div style="font-size:28px;margin-bottom:10px">🖨</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:5px">Rapport PDF / Impression</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px">Ouvre une fenêtre d'impression. Sauvegardez en PDF depuis votre navigateur.</div>
+      <button class="btn btn-sm" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple)" onclick="ExportEngine.exportPrint('${period}')">Ouvrir PDF ↗</button>
+    </div>
+
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.borderColor='var(--amber)'" onmouseleave="this.style.borderColor=''">
+      <div style="font-size:28px;margin-bottom:10px">📦</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:5px">Sauvegarde complète JSON</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px">Toutes les données en JSON. Restauration possible. Recommandé avant tout import massif.</div>
+      <button class="btn btn-sm" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)" onclick="Storage.exportJSON()">Sauvegarder JSON ↗</button>
+    </div>
+
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.borderColor='var(--cyan)'" onmouseleave="this.style.borderColor=''">
+      <div style="font-size:28px;margin-bottom:10px">📜</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:5px">Audit logs CSV</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px">Toutes les actions tracées. Horodatées, avec acteur et détail.</div>
+      <button class="btn btn-sm" style="background:var(--cyan-bg);color:var(--cyan);border:1px solid var(--cyan)" onclick="Views._exportLogsCSV()">Exporter logs ↗</button>
+    </div>
+  </div>
+
+  <!-- Récapitulatif complet -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Récapitulatif complet — ${cfg.label||period}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-primary btn-sm" onclick="ExportEngine.exportTeamCSV('${period}')">⬇ Export CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="ExportEngine.exportPrint('${period}')">🖨 PDF</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr>
+          <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Agent</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Comm.</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Attente</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Qual.</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Réunions</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Total</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">%</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">RDV</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Taux</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">TMC</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Contrat</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Gains MAD</th>
+          <th style="padding:9px;border-bottom:1px solid var(--border);color:var(--text-dim)">Projection MAD</th>
+        </tr></thead>
         <tbody>
-          ${DB.data.agents.map(ag=>{
-            const s=U.calc(ag.id,DB.data.period);
-            return`<tr>
-              <td><div style="display:flex;align-items:center;gap:7px"><div class="avatar" style="background:${ag.color||COLORS[0]};width:22px;height:22px;font-size:8px">${U.initials(ag.name)}</div><span class="text-cell">${ag.name}</span></div></td>
-              <td style="color:var(--acc)">${U.hms(s.tC)}</td><td style="color:var(--amber)">${U.hms(s.tW)}</td><td style="color:var(--purple)">${U.hms(s.tQP)}</td><td style="color:var(--green)">${U.hms(s.tM)}</td>
-              <td style="color:var(--cyan);font-weight:700">${U.hms(s.tot)}</td>
-              <td><span class="badge ${U.pbadge(s.pct)}">${U.n(s.pct,1)}%</span></td>
-              <td style="color:var(--red)">${s.tSales}</td><td>${U.n(s.rdv,1)}%</td><td style="color:var(--orange)">${U.mmss(s.tmc)}</td>
-              <td style="color:var(--green);font-weight:700">${s.earned?s.earned.toLocaleString('fr-FR')+' MAD':'—'}</td>
+          ${DB.data.agents.filter(a=>a.active!==false).map(ag => {
+            const s = U.calc(ag.id, period);
+            if (!s) return '';
+            return `<tr>
+              <td style="padding:9px"><div style="display:flex;align-items:center;gap:7px">
+                <div style="width:22px;height:22px;border-radius:50%;background:${ag.color||'#4f7ef8'};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${U.initials(ag.name)}</div>
+                <span style="font-weight:600">${ag.name}</span>
+              </div></td>
+              <td style="padding:9px;font-family:monospace;color:var(--blue)">${U.hms(s.tC)}</td>
+              <td style="padding:9px;font-family:monospace;color:var(--amber)">${U.hms(s.tW)}</td>
+              <td style="padding:9px;font-family:monospace;color:var(--purple)">${U.hms(s.tQP)}</td>
+              <td style="padding:9px;font-family:monospace;color:var(--green)">${U.hms(s.tM)}</td>
+              <td style="padding:9px;font-family:monospace;color:var(--cyan);font-weight:700">${U.hms(s.tot)}</td>
+              <td style="padding:9px"><span class="badge ${U.pbadge(s.pct)}">${s.pct.toFixed(1)}%</span></td>
+              <td style="padding:9px;font-family:monospace;color:var(--red)">${s.tSales}</td>
+              <td style="padding:9px;font-family:monospace">${s.rdvRate.toFixed(1)}%</td>
+              <td style="padding:9px;font-family:monospace;color:var(--orange)">${U.mmss(s.tmcSec)}</td>
+              <td style="padding:9px"><span class="badge ${ag.salType==='SALARIE'?'badge-blue':'badge-purple'}">${ag.salType||'AE'}</span></td>
+              <td style="padding:9px;font-family:monospace;color:var(--green);font-weight:700">${s.earned.toLocaleString('fr-FR')} MAD</td>
+              <td style="padding:9px;font-family:monospace">${s.projEarned.toLocaleString('fr-FR')} MAD</td>
             </tr>`;
           }).join('')}
         </tbody>
-      </table></div>
+      </table>
     </div>
-  `;
+  </div>`;
+},
+
+_exportLogsCSV() {
+  const logs = DB.data.logs || [];
+  let csv = 'ID;Horodatage;Acteur;Action;Detail;Periode\n';
+  logs.forEach(function(l) {
+    csv += (l.id||'') + ';' + l.ts + ';' + (l.actor||'') + ';' + (l.action||'') + ';' + (l.detail||'').replace(/;/g,'|') + ';' + (l.period||'') + '\n';
+  });
+  U.dlCSV(csv, 'Audit_Logs_' + DB.data.period + '_' + new Date().toISOString().split('T')[0] + '.csv');
+  U.toast('Audit logs exportés', 'success');
 },
 
 _exportMeetingsCSV() {
-  const logs=(DB.data.meetings||[]).filter(m=>m.period===DB.data.period);
-  let csv='Animateur;Date;Durée (min);Type;Agents;Note\n';
-  logs.forEach(m=>{const names=(m.agIds||[]).map(id=>DB.data.agents.find(a=>a.id===id)?.name||id).join(' | ');csv+=`${m.host||'Admin'};${m.date};${m.durMin};${m.type};"${names}";${m.note||''}\n`;});
-  U.dlCSV(csv,`Reunions_${DB.data.period}.csv`);
-  U.toast('Export réunions téléchargé','success');
+  const period = DB.data.period;
+  const logs = (DB.data.meetings || []).filter(function(m){ return m.period === period; });
+  let csv = 'ID;Date;Agents;Duree (min);Type;Animateur;Note;Justification;Supprime;Raison suppression\n';
+  logs.forEach(function(m) {
+    const names = (m.agIds||[]).map(function(id){ const a=DB.data.agents.find(function(a){return a.id===id;}); return a?a.name:id; }).join(' | ');
+    csv += (m.id||'') + ';' + m.date + ';' + names + ';' + m.durMin + ';' + (m.type||'') + ';' + (m.host||'') + ';' + (m.note||'').replace(/;/g,'|') + ';' + (m.justification||'').replace(/;/g,'|') + ';' + (m.deletedAt?'Oui':'Non') + ';' + (m.deleteReason||'') + '\n';
+  });
+  U.dlCSV(csv, 'Reunions_' + period + '.csv');
+  U.toast('Export réunions téléchargé', 'success');
 },
 
-_exportXLSX() {
-  if(typeof XLSX==='undefined')return U.toast('SheetJS non chargé','error');
-  const mkRow=ag=>{const s=U.calc(ag.id,DB.data.period);return{'ID Agent':ag.id,'ID Vicidial':ag.viciId||ag.id,'Nom':ag.name,'Type':ag.salType||'AE','Base MAD':ag.salBase||0,'Objectif h':s.goalH,'Heures réalisées':+U.n(s.hours,2),'Atteinte %':+U.n(s.pct,2),'Rémunération brute MAD':s.earned,'Projection MAD':s.projEarned,'Appels':s.tCalls,'RDV':s.tSales,'Taux RDV %':+U.n(s.rdv,2),'TMC (sec)':s.tmc};};
-  const sal=DB.data.agents.filter(a=>a.salType==='SALARIE').map(mkRow);
-  const ae =DB.data.agents.filter(a=>a.salType!=='SALARIE').map(mkRow);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sal),'Salariés');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ae),'Auto-Entrepreneurs');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(DB.data.agents.map(mkRow)),'Tous agents');
-  XLSX.writeFile(wb,`Comptable_ASP_${DB.data.period}_${U.today()}.xlsx`);
-  U.toast('Export Excel comptable généré','success');
-},
-
-// ─────────────────────────────────────────────────────────────────────
-// ADMIN — LOGS
-// ─────────────────────────────────────────────────────────────────────
 'ad-logs'() {
   const logs=DB.data.logs||[];
   document.getElementById('view').innerHTML=`
@@ -2500,20 +3382,6 @@ _exportAgentCSV: Views && Views['ag-history'] ? Views._exportAgentCSV : function
   U.toast('Export CSV téléchargé','success');
 }
 
-}; // end Views
-
-// Fix shared method
-Views._exportAgentCSV = function(agId) {
-  const ag=DB.data.agents.find(a=>a.id===agId)||{name:agId};
-  const s=U.calc(agId,DB.data.period);
-  if(!s)return;
-  let csv='Date;Communication;Attente;Qual. brute;Qual. retenue;Réunions;Total payé;Appels;RDV;Taux RDV;TMC (sec)\n';
-  [...s.recs].sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
-    const qp=Math.min(r.qual,QUAL_CAP),tot=r.comm+r.wait+qp+(r.mtg||0);
-    csv+=`${r.date};${U.hms(r.comm)};${U.hms(r.wait)};${U.hms(r.qual)};${U.hms(qp)};${U.hms(r.mtg||0)};${U.hms(tot)};${r.calls||0};${r.sales||0};${r.calls>0?((r.sales/r.calls)*100).toFixed(1)+'%':'0%'};${U.tmc(r.comm,r.calls||0)}\n`;
-  });
-  U.dlCSV(csv,`Rapport_${ag.name.replace(/ /g,'_')}_${DB.data.period}.csv`);
-  U.toast('Export CSV téléchargé','success');
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2523,6 +3391,7 @@ DB.init();
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('li').focus();
 });
+
 </script>
 </body>
 </html>
