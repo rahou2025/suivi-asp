@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ASP Connect PRO · Suivi Temps & Performance</title>
+<title>ASP Connect PRO · v5</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -17,13 +17,25 @@
   --red:#ef4444;--redD:rgba(239,68,68,.12);
   --pur:#a78bfa;--purD:rgba(167,139,250,.12);
   --cyn:#22d3ee;--cynD:rgba(34,211,238,.12);
+  --ora:#f97316;--oraD:rgba(249,115,22,.12);
   --r:12px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;display:flex;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:10px}
+
+/* BANNER DERNIÈRE MISE À JOUR */
+#upd-banner{background:linear-gradient(90deg,rgba(79,126,248,.12),rgba(34,211,238,.08));border-bottom:1px solid var(--b2);padding:7px 24px;display:flex;align-items:center;justify-content:space-between;font-size:11px;flex-shrink:0;transition:all .3s}
+.upd-left{display:flex;align-items:center;gap:10px;color:var(--dim)}
+.upd-dot{width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 6px var(--grn);animation:pulse 2s infinite;flex-shrink:0}
+.upd-date{color:var(--cyn);font-family:'JetBrains Mono';font-weight:600}
+.upd-period{color:var(--dim);margin-left:6px}
+.upd-none{color:var(--amb)}
+
+/* APP BODY */
+.app-body{flex:1;display:flex;overflow:hidden}
 
 /* LOGIN */
 #login-ov{position:fixed;inset:0;background:radial-gradient(ellipse at center,#0f1630 0%,var(--bg) 70%);z-index:9999;display:flex;align-items:center;justify-content:center;transition:opacity .4s}
@@ -36,11 +48,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
 .lbtn{width:100%;padding:15px;background:linear-gradient(135deg,#4f7ef8,#6366f1);border:none;border-radius:10px;color:#fff;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;transition:all .2s;box-shadow:0 8px 24px var(--accG)}
 .lbtn:hover{transform:translateY(-2px)}
 .lerr{color:var(--red);font-size:12px;margin-top:12px;display:none}
-.lhint{margin-top:18px;font-size:11px;color:var(--mu);line-height:1.8}
 
 /* SIDEBAR */
-.sidebar{width:240px;min-width:240px;background:var(--sb);border-right:1px solid var(--b);display:flex;flex-direction:column;padding:20px 14px}
-.lg-area{display:flex;align-items:center;gap:10px;padding:6px 8px;margin-bottom:32px}
+.sidebar{width:240px;min-width:240px;background:var(--sb);border-right:1px solid var(--b);display:flex;flex-direction:column;padding:20px 14px;overflow-y:auto}
+.lg-area{display:flex;align-items:center;gap:10px;padding:6px 8px;margin-bottom:28px}
 .lg-icon{width:36px;height:36px;min-width:36px;background:linear-gradient(135deg,#4f7ef8,#7c3aed);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px var(--accG)}
 .lg-t{font-size:15px;font-weight:800;letter-spacing:-.3px}
 .lg-s{font-size:10px;color:var(--dim);margin-top:1px}
@@ -50,30 +61,32 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
 .ni:hover{background:rgba(255,255,255,.04);color:var(--txt)}
 .ni.active{background:var(--accD);color:var(--acc);font-weight:600}
 .ni.active svg{opacity:1}
-.nb{margin-top:auto}
+.ni.alert-nav{color:var(--red)}
+.ni.alert-nav.active{background:var(--redD);color:var(--red)}
+.nb{margin-top:auto;padding-top:16px}
 .ubdg{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card2);border-radius:10px;border:1px solid var(--b);margin-top:8px}
 .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#fff}
 
 /* MAIN */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.topbar{height:62px;min-height:62px;background:rgba(10,12,18,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 28px;gap:16px;z-index:10}
-#pt{font-size:16px;font-weight:700}
-.tbr{display:flex;align-items:center;gap:14px}
-.psel{background:var(--card2);border:1px solid var(--b2);color:var(--txt);padding:7px 12px;border-radius:8px;font-family:inherit;font-size:13px;outline:none;cursor:pointer}
-.psel option{background:#1a1f2b}
-.ckbox{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--b);padding:6px 14px;border-radius:8px}
+.topbar{height:56px;min-height:56px;background:rgba(10,12,18,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 24px;gap:16px;z-index:10}
+#pt{font-size:15px;font-weight:700}
+.tbr{display:flex;align-items:center;gap:12px}
+.psel{background:var(--card2);border:1px solid var(--b2);color:var(--txt);padding:6px 12px;border-radius:8px;font-family:inherit;font-size:13px;outline:none;cursor:pointer}
+.ckbox{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--b);padding:5px 12px;border-radius:8px}
 .cktm{font-family:'JetBrains Mono';font-size:13px;font-weight:600;color:var(--grn)}
 .ckdt{font-size:11px;color:var(--dim)}
-.dot-live{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 8px var(--grn);animation:pulse 2s infinite}
+.dot-live{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 6px var(--grn);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
-.content{flex:1;overflow-y:auto;padding:28px}
+.content{flex:1;overflow-y:auto;padding:24px}
 
 /* KPI */
-.kg{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.kg{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
 .kg3{grid-template-columns:repeat(3,1fr)}
 .kg5{grid-template-columns:repeat(5,1fr)}
 .kg6{grid-template-columns:repeat(6,1fr)}
-.kc{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:20px 18px;position:relative;overflow:hidden;transition:border-color .2s}
+.kg2{grid-template-columns:repeat(2,1fr)}
+.kc{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:18px 16px;position:relative;overflow:hidden;transition:border-color .2s}
 .kc:hover{border-color:var(--b2)}
 .kc::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
 .kcomm::before{background:var(--acc)}
@@ -82,34 +95,38 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
 .kmtg::before{background:var(--grn)}
 .ktot::before{background:var(--cyn)}
 .krdv::before{background:var(--red)}
-.kl{font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
-.kv{font-family:'JetBrains Mono';font-size:22px;font-weight:600;line-height:1.1}
-.ks{font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5}
+.ktmc::before{background:var(--ora)}
+.kalert::before{background:var(--red)}
+.kl{font-size:10px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.kv{font-family:'JetBrains Mono';font-size:20px;font-weight:600;line-height:1.1}
+.ks{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.5}
 
 /* CARD */
-.card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:22px;margin-bottom:20px}
-.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.card{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:20px;margin-bottom:18px}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
 .ct{font-size:14px;font-weight:700}
 .cs{font-size:12px;color:var(--dim);margin-top:2px}
 
 /* PROGRESS */
-.pb{height:8px;background:rgba(255,255,255,.05);border-radius:10px;overflow:hidden;margin-top:8px}
+.pb{height:7px;background:rgba(255,255,255,.05);border-radius:10px;overflow:hidden;margin-top:8px}
 .pf{height:100%;border-radius:10px;transition:width .8s cubic-bezier(.22,1,.36,1)}
 .pf.g{background:linear-gradient(90deg,var(--grn),#059669)}
 .pf.a{background:linear-gradient(90deg,var(--amb),#d97706)}
 .pf.r{background:linear-gradient(90deg,var(--red),#dc2626)}
 .pf.b{background:linear-gradient(90deg,var(--acc),#7c3aed)}
+.pf.o{background:linear-gradient(90deg,var(--ora),#ea580c)}
 
 /* TABLE */
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{text-align:left;padding:10px 14px;color:var(--dim);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--b);white-space:nowrap}
-tbody td{padding:12px 14px;border-bottom:1px solid var(--b);font-family:'JetBrains Mono';font-size:12px}
+thead th{text-align:left;padding:9px 12px;color:var(--dim);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--b);white-space:nowrap}
+tbody td{padding:11px 12px;border-bottom:1px solid var(--b);font-family:'JetBrains Mono';font-size:12px}
 tbody td.tn{font-family:'Inter';font-size:13px}
 tbody td.tb{font-family:'Inter';font-size:13px;font-weight:700}
 tbody tr:hover td{background:rgba(255,255,255,.015)}
 tbody tr:last-child td{border-bottom:none}
 tr.trtot td{background:rgba(79,126,248,.05);font-weight:700}
+tr.alert-row td{background:rgba(239,68,68,.04)}
 
 /* BADGE */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
@@ -119,18 +136,19 @@ tr.trtot td{background:rgba(79,126,248,.05);font-weight:700}
 .bb{background:var(--accD);color:var(--acc)}
 .bp{background:var(--purD);color:var(--pur)}
 .bc{background:var(--cynD);color:var(--cyn)}
+.bo{background:var(--oraD);color:var(--ora)}
 
 /* FORMS */
-.fg{margin-bottom:16px}
-.fl{display:block;font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px}
-.fc{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--b2);padding:12px 14px;border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s,background .2s}
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.6px}
+.fc{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--b2);padding:10px 12px;border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s}
 .fc:focus{border-color:var(--acc);background:rgba(79,126,248,.06)}
 select.fc{cursor:pointer}
 select.fc option{background:#1a1f2b}
-textarea.fc{resize:vertical;min-height:180px;font-family:'JetBrains Mono';font-size:11px;line-height:1.7}
+textarea.fc{resize:vertical;min-height:160px;font-family:'JetBrains Mono';font-size:11px;line-height:1.7}
 
 /* BUTTONS */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;border-radius:8px;border:none;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;transition:all .18s;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 16px;border-radius:8px;border:none;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;transition:all .18s;white-space:nowrap}
 .btn:active{transform:scale(.97)}
 .btnp{background:var(--acc);color:#fff;box-shadow:0 4px 16px var(--accG)}
 .btnp:hover{background:#5a88ff}
@@ -138,46 +156,47 @@ textarea.fc{resize:vertical;min-height:180px;font-family:'JetBrains Mono';font-s
 .btng:hover{background:rgba(255,255,255,.09)}
 .btnd{background:var(--redD);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .btnd:hover{background:rgba(239,68,68,.2)}
-.bsm{padding:6px 12px;font-size:12px}
+.bsm{padding:5px 11px;font-size:12px}
 .bfw{width:100%}
 
 /* GRIDS */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
 
-/* REALTIME PANEL */
-.rtp{background:var(--card2);border:1px solid var(--b2);border-radius:var(--r);padding:20px;margin-bottom:20px;position:relative;overflow:hidden}
+/* REALTIME */
+.rtp{background:var(--card2);border:1px solid var(--b2);border-radius:var(--r);padding:18px;margin-bottom:18px;position:relative;overflow:hidden}
 .rtp::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top right,rgba(79,126,248,.06) 0%,transparent 60%);pointer-events:none}
-.rtg{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
-.rti{background:var(--card);border:1px solid var(--b);border-radius:10px;padding:14px 12px;text-align:center}
-.rtl{font-size:10px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
-.rtv{font-family:'JetBrains Mono';font-size:17px;font-weight:600}
-.rts{font-size:10px;color:var(--mu);margin-top:4px;line-height:1.4}
+.rtg{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.rti{background:var(--card);border:1px solid var(--b);border-radius:10px;padding:12px 10px;text-align:center}
+.rtl{font-size:9px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.rtv{font-family:'JetBrains Mono';font-size:16px;font-weight:600}
+.rts{font-size:9px;color:var(--mu);margin-top:3px;line-height:1.4}
 
 /* AGENT ROW */
-.agr{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--card);border:1px solid var(--b);border-radius:10px;margin-bottom:10px;transition:border-color .2s;cursor:pointer}
+.agr{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border:1px solid var(--b);border-radius:10px;margin-bottom:8px;transition:border-color .2s;cursor:pointer}
 .agr:hover{border-color:var(--b2)}
-.agav{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff}
+.agr.alert-row-bg{border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.03)}
+.agav{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
 .agi{flex:1;min-width:0}
-.agn{font-size:14px;font-weight:700}
+.agn{font-size:13px;font-weight:700}
 .agid{font-size:11px;color:var(--dim);font-family:'JetBrains Mono'}
 .agpg{flex:2;min-width:0}
-.agpct{font-family:'JetBrains Mono';font-size:16px;font-weight:700;text-align:right;min-width:60px}
-.aghr{font-size:11px;color:var(--dim);font-family:'JetBrains Mono';text-align:right;min-width:110px}
+.agpct{font-family:'JetBrains Mono';font-size:15px;font-weight:700;text-align:right;min-width:55px}
+.aghr{font-size:11px;color:var(--dim);font-family:'JetBrains Mono';text-align:right;min-width:100px}
 
-/* MTG ITEM */
-.mtgi{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card2);border-radius:8px;margin-bottom:6px;font-size:13px}
+/* MTG */
+.mtgi{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card2);border-radius:8px;margin-bottom:5px;font-size:12px}
 
-/* AGENT CHECKLIST */
-.agcl{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border:1px solid var(--b2);border-radius:9px;padding:10px}
-.agci{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;transition:background .15s}
+/* CHECKLIST */
+.agcl{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;border:1px solid var(--b2);border-radius:9px;padding:8px}
+.agci{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:7px;cursor:pointer;transition:background .15s}
 .agci:hover{background:rgba(255,255,255,.04)}
-.agci input[type=checkbox]{width:16px;height:16px;accent-color:var(--acc);cursor:pointer;flex-shrink:0}
+.agci input[type=checkbox]{width:15px;height:15px;accent-color:var(--acc);cursor:pointer;flex-shrink:0}
 .agci label{cursor:pointer;font-size:13px;font-weight:500}
 
 /* TOAST */
-#toasts{position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.toast{background:var(--card2);border:1px solid var(--b2);border-left:3px solid var(--acc);padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:tIn .3s ease-out;pointer-events:all}
+#toasts{position:fixed;bottom:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--card2);border:1px solid var(--b2);border-left:3px solid var(--acc);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:tIn .3s ease-out;pointer-events:all}
 .toast.s{border-left-color:var(--grn)}
 .toast.e{border-left-color:var(--red)}
 .toast.i{border-left-color:var(--cyn)}
@@ -185,28 +204,44 @@ textarea.fc{resize:vertical;min-height:180px;font-family:'JetBrains Mono';font-s
 
 /* MODAL */
 .mo-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center}
-.mo{background:var(--card);border:1px solid var(--b2);border-radius:16px;padding:32px;width:520px;max-width:95vw;box-shadow:0 4px 24px rgba(0,0,0,.4);animation:moIn .25s ease-out}
-.mot{font-size:18px;font-weight:700;margin-bottom:6px}
-.mos{font-size:13px;color:var(--dim);margin-bottom:24px}
+.mo{background:var(--card);border:1px solid var(--b2);border-radius:16px;padding:28px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,.4);animation:moIn .25s ease-out}
+.mot{font-size:17px;font-weight:700;margin-bottom:5px}
+.mos{font-size:12px;color:var(--dim);margin-bottom:20px}
 @keyframes moIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 
 /* MISC */
-.empty{text-align:center;padding:50px 20px;color:var(--dim);font-size:14px}
-.ibox{background:var(--accD);border:1px solid rgba(79,126,248,.2);border-radius:9px;padding:14px 16px;font-size:13px;color:var(--dim);margin-bottom:16px;line-height:1.6}
-.itip{background:var(--cynD);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--cyn);margin-bottom:16px;line-height:1.6}
-.ifmt{background:rgba(0,0,0,.3);border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono';font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:16px;overflow-x:auto;white-space:pre}
-.divider{height:1px;background:var(--b);margin:16px 0}
-.fdrop{border:2px dashed var(--b2);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.empty{text-align:center;padding:40px 20px;color:var(--dim);font-size:14px}
+.ibox{background:var(--accD);border:1px solid rgba(79,126,248,.2);border-radius:9px;padding:12px 14px;font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.6}
+.itip{background:var(--cynD);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--cyn);margin-bottom:14px;line-height:1.6}
+.ifmt{background:rgba(0,0,0,.3);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono';font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px;overflow-x:auto;white-space:pre}
+.divider{height:1px;background:var(--b);margin:14px 0}
+.fdrop{border:2px dashed var(--b2);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
 .fdrop:hover,.fdrop.over{border-color:var(--acc);background:var(--accD)}
 .fdrop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 
-/* SUMMARY STATS */
-.sstat{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.sstatitem{background:var(--card2);border-radius:8px;padding:8px 14px;font-size:12px;font-family:'JetBrains Mono'}
+/* ALERT SCORE */
+.alert-score{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:var(--redD);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.alert-score.medium{background:var(--ambD);color:var(--amb);border-color:rgba(245,158,11,.3)}
+
+/* TREND */
+.trend-up{color:var(--grn)}
+.trend-dn{color:var(--red)}
+.trend-eq{color:var(--dim)}
 </style>
 </head>
 <body>
 <div id="toasts"></div>
+
+<!-- BANNER DERNIÈRE MISE À JOUR -->
+<div id="upd-banner">
+  <div class="upd-left">
+    <div class="upd-dot"></div>
+    <span>Dernière mise à jour des données :</span>
+    <span class="upd-date" id="upd-date">Aucune donnée importée</span>
+    <span class="upd-period" id="upd-period"></span>
+  </div>
+  <span style="font-size:11px;color:var(--mu)" id="upd-count"></span>
+</div>
 
 <!-- LOGIN -->
 <div id="login-ov">
@@ -215,25 +250,20 @@ textarea.fc{resize:vertical;min-height:180px;font-family:'JetBrains Mono';font-s
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
     </div>
     <h1>ASP Connect PRO</h1>
-    <p class="sub">Suivi du temps de travail & performance</p>
-    <input type="text" id="log-id" placeholder="Identifiant (ex: FATIMA_01 ou ID Vicidial)" autocomplete="off">
+    <p class="sub">Suivi du temps de travail &amp; performance</p>
+    <input type="text" id="log-id" placeholder="Identifiant">
     <input type="password" id="log-pw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')Auth.login()">
     <button class="lbtn" onclick="Auth.login()">Se connecter</button>
     <div id="lerr" class="lerr">Identifiants incorrects.</div>
-    <p class="lhint">
-      Admin : <strong style="color:var(--acc)">SUPER</strong> / <strong style="color:var(--acc)">1234</strong><br>
-      Agents test : FATIMA_01 / 0001 · SARA_02 / 0002 · etc.
-    </p>
   </div>
 </div>
 
+<div class="app-body">
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="lg-area">
-    <div class="lg-icon">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-    </div>
-    <div><div class="lg-t">ASP Connect</div><div class="lg-s">PRO Edition</div></div>
+    <div class="lg-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+    <div><div class="lg-t">ASP Connect</div><div class="lg-s">PRO · v5</div></div>
   </div>
 
   <div id="nav-agent" style="display:none">
@@ -241,19 +271,21 @@ textarea.fc{resize:vertical;min-height:180px;font-family:'JetBrains Mono';font-s
     <button class="ni active" onclick="R.go('ag-dash',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Tableau de bord</button>
     <button class="ni" onclick="R.go('ag-hist',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Historique détaillé</button>
     <button class="ni" onclick="R.go('ag-stats',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Mes statistiques</button>
+    <button class="ni" onclick="R.go('ag-perf',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Mes indicateurs clés</button>
   </div>
 
   <div id="nav-admin" style="display:none">
     <div class="ns">Supervision</div>
     <button class="ni active" onclick="R.go('ad-team',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>Vue équipe</button>
     <button class="ni" onclick="R.go('ad-detail',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Détail par agent</button>
-    <div class="ns" style="margin-top:18px">Données</div>
+    <button class="ni alert-nav" onclick="R.go('ad-alerts',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Agents en alerte</button>
+    <div class="ns" style="margin-top:16px">Données</div>
     <button class="ni" onclick="R.go('ad-import',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Import Vicidial</button>
-    <button class="ni" onclick="R.go('ad-mtg',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>Réunions & Coaching</button>
-    <div class="ns" style="margin-top:18px">Gestion</div>
+    <button class="ni" onclick="R.go('ad-mtg',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>Réunions &amp; Coaching</button>
+    <div class="ns" style="margin-top:16px">Gestion</div>
     <button class="ni" onclick="R.go('ad-agents',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197"/></svg>Gestion agents</button>
-    <button class="ni" onclick="R.go('ad-periodes',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Périodes & Objectifs</button>
-    <button class="ni" onclick="R.go('ad-export',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Exports & Rapports</button>
+    <button class="ni" onclick="R.go('ad-periodes',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Périodes &amp; Objectifs</button>
+    <button class="ni" onclick="R.go('ad-export',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Exports &amp; Rapports</button>
   </div>
 
   <div class="nb">
@@ -276,94 +308,98 @@ textarea.fc{resize:vertical;min-height:180px;font-family:'JetBrains Mono';font-s
   </header>
   <div class="content" id="view"></div>
 </main>
+</div><!-- /app-body -->
 
 <script>
-// ══════════════════════════════════════════════
-// CONSTANTES MÉTIER
-// ══════════════════════════════════════════════
-const QUAL_CAP = 1800; // 30 min/jour en secondes
+// ═══════════════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════════════
+const QUAL_CAP = 1800;
 const DB_KEY   = 'asp_v6';
 const COLORS   = ['#4f7ef8','#10b981','#f59e0b','#a78bfa','#22d3ee','#ef4444','#f97316','#ec4899','#06b6d4','#84cc16','#8b5cf6','#14b8a6'];
+const HPD_OPTIONS = [6, 7, 8];
 
-// ══════════════════════════════════════════════
-// BASE DE DONNÉES (localStorage)
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// BASE DE DONNÉES
+// ═══════════════════════════════════════════════
 let DB = (() => {
   const s = localStorage.getItem(DB_KEY);
   if (s) { try { return JSON.parse(s); } catch(e){} }
-  // Démo : données réalistes pour tester l'application
   const demo = {
     period: '2026-04',
+    lastImport: null, // {date, period, count}
     periods: {
       '2026-03': { label:'Mars 2026',  goalH:132, days:22, hpd:6, start:'2026-03-01' },
       '2026-04': { label:'Avril 2026', goalH:126, days:21, hpd:6, start:'2026-04-01' },
       '2026-05': { label:'Mai 2026',   goalH:132, days:22, hpd:6, start:'2026-05-01' },
     },
     agents: [
-      {id:'FATIMA_01',  viciId:'06980713',  name:'Fatima El Amrani',  pw:'0001', color:'#4f7ef8'},
-      {id:'SARA_02',    viciId:'104806005', name:'Sara Benali',        pw:'0002', color:'#10b981'},
-      {id:'NADIA_03',   viciId:'207113002', name:'Nadia Ouali',        pw:'0003', color:'#f59e0b'},
-      {id:'IMANE_04',   viciId:'309220104', name:'Imane Tazi',         pw:'0004', color:'#a78bfa'},
-      {id:'HAFSA_05',   viciId:'415300205', name:'Hafsa Moukrim',      pw:'0005', color:'#22d3ee'},
-      {id:'ZINEB_06',   viciId:'516410306', name:'Zineb Raji',         pw:'0006', color:'#ef4444'},
-      {id:'KHADIJA_07', viciId:'617520407', name:'Khadija Alami',      pw:'0007', color:'#f97316'},
-      {id:'ASMAA_08',   viciId:'718630508', name:'Asmaa Chraibi',      pw:'0008', color:'#ec4899'},
+      {id:'FATIMA_01', viciId:'06980713',  name:'Fatima El Amrani', pw:'0001', color:'#4f7ef8', salBase:5000, salType:'AE',  hpd:6},
+      {id:'SARA_02',   viciId:'104806005', name:'Sara Benali',       pw:'0002', color:'#10b981', salBase:4800, salType:'AE',  hpd:6},
+      {id:'NADIA_03',  viciId:'207113002', name:'Nadia Ouali',       pw:'0003', color:'#f59e0b', salBase:4500, salType:'AE',  hpd:6},
+      {id:'IMANE_04',  viciId:'309220104', name:'Imane Tazi',        pw:'0004', color:'#a78bfa', salBase:5200, salType:'SALARIE', hpd:6},
+      {id:'HAFSA_05',  viciId:'415300205', name:'Hafsa Moukrim',     pw:'0005', color:'#22d3ee', salBase:4700, salType:'AE',  hpd:6},
+      {id:'ZINEB_06',  viciId:'516410306', name:'Zineb Raji',        pw:'0006', color:'#ef4444', salBase:4600, salType:'AE',  hpd:6},
+      {id:'KHADIJA_07',viciId:'617520407', name:'Khadija Alami',     pw:'0007', color:'#f97316', salBase:4900, salType:'AE',  hpd:6},
+      {id:'ASMAA_08',  viciId:'718630508', name:'Asmaa Chraibi',     pw:'0008', color:'#ec4899', salBase:4400, salType:'AE',  hpd:6},
     ],
-    records: {},  // agId → [{period,date,comm,wait,qual,mtg,calls,sales}]
-    mtg_log: [],  // [{agId,date,period,durMin,type,note}]
+    records: {},
+    mtg_log: [],
   };
-  // Seed données démo Mars + Avril
-  const ouvrés03 = [2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30,31];
+  // Seed données
   const ouvrés04 = [1,2,3,6,7,8,9,10,13,14,15,16,17,20,21,22,23,24,27,28,29];
-  demo.agents.forEach((ag,ai) => {
-    demo.records[ag.id] = [];
-    const baseComm = 4200 + ai*320;
-    ouvrés03.forEach(d => {
-      const comm = baseComm + Math.floor(Math.random()*3600);
-      const wait = 1800 + Math.floor(Math.random()*1800);
-      const qual = 800  + Math.floor(Math.random()*2400);
-      const calls = 30 + Math.floor(Math.random()*80);
-      const sales = Math.floor(calls * (.05 + Math.random()*.12));
+  const ouvrés03 = [2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30,31];
+  demo.agents.forEach((ag,ai)=>{
+    demo.records[ag.id]=[];
+    const base=[4200+ai*300, 1800+ai*100];
+    ouvrés03.forEach(d=>{
+      const comm=base[0]+Math.floor(Math.random()*3000);
+      const wait=base[1]+Math.floor(Math.random()*1200);
+      const qual=700+Math.floor(Math.random()*2000);
+      const calls=35+Math.floor(Math.random()*70);
+      const sales=Math.floor(calls*(.05+Math.random()*.10));
       demo.records[ag.id].push({period:'2026-03',date:`2026-03-${String(d).padStart(2,'0')}`,comm,wait,qual,mtg:0,calls,sales});
     });
-    ouvrés04.slice(0,14).forEach(d => {
-      const comm = baseComm + Math.floor(Math.random()*3000);
-      const wait = 1600 + Math.floor(Math.random()*1600);
-      const qual = 700  + Math.floor(Math.random()*2200);
-      const calls = 28 + Math.floor(Math.random()*70);
-      const sales = Math.floor(calls * (.04 + Math.random()*.13));
+    ouvrés04.slice(0,14).forEach(d=>{
+      const comm=base[0]+Math.floor(Math.random()*2600);
+      const wait=base[1]+Math.floor(Math.random()*1100);
+      const qual=600+Math.floor(Math.random()*1900);
+      const calls=30+Math.floor(Math.random()*65);
+      const sales=Math.floor(calls*(.04+Math.random()*.11));
       demo.records[ag.id].push({period:'2026-04',date:`2026-04-${String(d).padStart(2,'0')}`,comm,wait,qual,mtg:0,calls,sales});
     });
   });
   // Quelques réunions démo
-  demo.mtg_log = [
+  demo.mtg_log=[
     {agId:'FATIMA_01',date:'2026-04-07',period:'2026-04',durMin:30,type:'coaching',note:'Débriefing appels'},
-    {agId:'SARA_02',  date:'2026-04-07',period:'2026-04',durMin:30,type:'coaching',note:'Débriefing appels'},
+    {agId:'SARA_02',  date:'2026-04-07',period:'2026-04',durMin:30,type:'coaching',note:''},
     {agId:'NADIA_03', date:'2026-04-05',period:'2026-04',durMin:45,type:'reunion', note:'Réunion hebdo'},
   ];
-  demo.mtg_log.forEach(m => {
-    const day = (demo.records[m.agId]||[]).find(r=>r.date===m.date&&r.period===m.period);
-    if (day) day.mtg = (day.mtg||0) + m.durMin*60;
-    else { if(!demo.records[m.agId])demo.records[m.agId]=[]; demo.records[m.agId].push({period:m.period,date:m.date,comm:0,wait:0,qual:0,mtg:m.durMin*60,calls:0,sales:0}); }
+  demo.mtg_log.forEach(m=>{
+    const r=demo.records[m.agId]; if(!r) return;
+    const day=r.find(x=>x.date===m.date&&x.period===m.period);
+    if(day) day.mtg=(day.mtg||0)+m.durMin*60;
+    else r.push({period:m.period,date:m.date,comm:0,wait:0,qual:0,mtg:m.durMin*60,calls:0,sales:0});
   });
+  // Dernier import démo
+  demo.lastImport={date:'2026-04-24',period:'2026-04',count:112,agents:8};
   localStorage.setItem(DB_KEY, JSON.stringify(demo));
   return demo;
 })();
 
 function save(){ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // UTILITAIRES
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 const U = {
-  // Convertit H:MM:SS ou secondes en secondes
-  toSec(v) {
-    if (!v) return 0;
-    const s = String(v).trim().replace(/"/g,'');
-    if (!s.includes(':')) return parseFloat(s)*86400 || parseInt(s) || 0; // fraction de jour Vicidial
-    const p = s.split(':').map(Number);
-    if (p.length===3) return p[0]*3600+p[1]*60+p[2];
-    if (p.length===2) return p[0]*60+p[1];
+  toSec(v){
+    if(!v) return 0;
+    const s=String(v).trim().replace(/"/g,'');
+    if(!s.includes(':')) return parseFloat(s)*86400||parseInt(s)||0;
+    const p=s.split(':').map(Number);
+    if(p.length===3) return p[0]*3600+p[1]*60+p[2];
+    if(p.length===2) return p[0]*60+p[1];
     return 0;
   },
   hms(s){
@@ -374,40 +410,61 @@ const U = {
     s=Math.floor(s||0);
     return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   },
-  fmtDate(d){ return d.split('-').reverse().join('/'); },
+  secToMMSS(s){
+    s=Math.floor(s||0);
+    return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  },
+  fmtDate(d){ return (d||'').split('-').reverse().join('/'); },
   today(){ return new Date().toISOString().split('T')[0]; },
   initials(n){ return (n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); },
   pcolor(p){ return p>=90?'var(--grn)':p>=65?'var(--amb)':'var(--red)'; },
   pcls(p){ return p>=90?'g':p>=65?'a':'r'; },
   pbadge(p){ return p>=90?'bg':p>=65?'ba':'br'; },
-
-  // Calcul complet d'un agent sur une période
-  calc(agId, period) {
-    const recs = (DB.records[agId]||[]).filter(r=>r.period===period);
+  // TMC : temps moyen de communication par appel en secondes
+  tmc(comm, calls){ return calls>0?Math.round(comm/calls):0; },
+  // Calcul complet agent/période
+  calc(agId, period){
+    const recs=(DB.records[agId]||[]).filter(r=>r.period===period);
     let tC=0,tW=0,tQR=0,tQP=0,tM=0,tCalls=0,tSales=0;
     recs.forEach(r=>{
-      tC    += (r.comm||0);
-      tW    += (r.wait||0);
-      tQR   += (r.qual||0);
-      tQP   += Math.min(r.qual||0, QUAL_CAP);
-      tM    += (r.mtg||0);
-      tCalls+= (r.calls||0);
-      tSales+= (r.sales||0);
+      tC+=(r.comm||0); tW+=(r.wait||0);
+      tQR+=(r.qual||0); tQP+=Math.min(r.qual||0,QUAL_CAP);
+      tM+=(r.mtg||0); tCalls+=(r.calls||0); tSales+=(r.sales||0);
     });
     const tot=tC+tW+tQP+tM, h=tot/3600;
     const cfg=DB.periods[period]||{goalH:132};
-    const pct=Math.min(100,(h/cfg.goalH)*100);
+    const pct=Math.min(100,h/cfg.goalH*100);
     const rdvRate=tCalls>0?tSales/tCalls*100:0;
-    return {tC,tW,tQR,tQP,tM,tCalls,tSales,tot,h,pct,goalH:cfg.goalH,recs,rdvRate};
+    const tmcSec=U.tmc(tC,tCalls);
+    const qualRatio=tot>0?tQP/tot*100:0;
+    return {tC,tW,tQR,tQP,tM,tCalls,tSales,tot,h,pct,goalH:cfg.goalH,recs,rdvRate,tmcSec,qualRatio};
   },
-
-  // Parse une ligne CSV Vicidial (format standard export)
-  parseVicidialLine(line) {
-    // Séparateur : virgule ou point-virgule, avec ou sans guillemets
-    const sep = line.includes(';') ? ';' : ',';
-    const cols = [];
-    let cur='', inQ=false;
-    for (let i=0;i<line.length;i++){
+  // Calcul score alerte (0-100, plus élevé = plus en danger)
+  alertScore(agId, period){
+    const s=U.calc(agId,period);
+    const peers=DB.agents.map(a=>U.calc(a.id,period));
+    const avgCalls=peers.reduce((a,p)=>a+p.tCalls,0)/Math.max(1,peers.length);
+    const avgTmc=peers.reduce((a,p)=>a+p.tmcSec,0)/Math.max(1,peers.length);
+    const avgRdv=peers.reduce((a,p)=>a+p.rdvRate,0)/Math.max(1,peers.length);
+    const avgQR=peers.reduce((a,p)=>a+p.qualRatio,0)/Math.max(1,peers.length);
+    const avgH=peers.reduce((a,p)=>a+p.h,0)/Math.max(1,peers.length);
+    let score=0;
+    // Peu d'heures (-35 pts max)
+    if(avgH>0) score+=Math.max(0,35*(1-s.h/avgH));
+    // Peu d'appels (-25 pts max)
+    if(avgCalls>0) score+=Math.max(0,25*(1-s.tCalls/avgCalls));
+    // TMC faible (-20 pts max)
+    if(avgTmc>0) score+=Math.max(0,20*(1-s.tmcSec/avgTmc));
+    // Taux RDV faible (-15 pts max)
+    if(avgRdv>0) score+=Math.max(0,15*(1-s.rdvRate/avgRdv));
+    // Qualification élevée (+5 pts max)
+    if(avgQR>0&&s.qualRatio>avgQR) score+=Math.min(5,(s.qualRatio-avgQR)/avgQR*5);
+    return Math.round(Math.min(100,score));
+  },
+  parseVicidialLine(line){
+    const sep=line.includes(';')?';':',';
+    const cols=[]; let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
       const c=line[i];
       if(c==='"'){inQ=!inQ;continue;}
       if(c===sep&&!inQ){cols.push(cur.trim());cur='';continue;}
@@ -416,78 +473,62 @@ const U = {
     cols.push(cur.trim());
     return cols;
   },
-
-  // Parse fichier complet Vicidial avec fill-down agent
-  parseVicidial(text) {
-    const lines = text.split('\n').filter(l=>l.trim());
-    const results=[];
-    let curAgent=null;
-    for (const line of lines) {
-      const cols = U.parseVicidialLine(line);
-      if (cols.length<6) continue;
+  parseVicidial(text){
+    const lines=text.split('\n').filter(l=>l.trim());
+    const results=[]; let curAgent=null;
+    for(const line of lines){
+      const cols=U.parseVicidialLine(line);
+      if(cols.length<6) continue;
       const skip=['USER NAME','TOTALS','AGENT PERF','---','Agent Perform'].some(s=>line.toUpperCase().includes(s.toUpperCase()));
-      if (skip) continue;
-
-      // Détection ligne agent (nom en col 0, ID en col 1)
-      const col0=cols[0], col1=cols[1];
-      const dateCol=cols[4]||'';
+      if(skip) continue;
+      const col0=cols[0],col1=cols[1],dateCol=cols[4]||'';
       const isDate=/^\d{4}-\d{2}-\d{2}$/.test(dateCol)||/^\d{2}\/\d{2}\/\d{4}$/.test(dateCol);
-
-      if (col0&&col1&&!isDate&&col0.length>2) {
-        curAgent={id:col1.trim(), name:col0.trim()};
-        continue;
-      }
-
-      if (!curAgent||!isDate) continue;
-
-      // Parse date
+      if(col0&&col1&&!isDate&&col0.length>2){curAgent={id:col1.trim(),name:col0.trim()};continue;}
+      if(!curAgent||!isDate) continue;
       let date=dateCol;
-      if (date.includes('/')) {
-        const p=date.split('/');
-        date=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
-      }
-
-      // Colonnes Vicidial standard : 5=appels, 9=attente, 11=comm, 13=qual/dispo
-      const calls = parseInt(cols[5])||0;
-      const wait  = U.toSec(cols[9]||'0');
-      const comm  = U.toSec(cols[11]||cols[6]||'0');
-      const qual  = U.toSec(cols[13]||'0');
-      // RDV (SALE) : dernière colonne numérique non nulle
+      if(date.includes('/')){const p=date.split('/');date=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}
+      const calls=parseInt(cols[5])||0,wait=U.toSec(cols[9]||'0'),comm=U.toSec(cols[11]||cols[6]||'0'),qual=U.toSec(cols[13]||'0');
       const trailing=cols.slice(14).map(x=>parseInt(x)||0);
       const sales=trailing.length?trailing[trailing.length-1]:0;
-
-      results.push({agId:curAgent.id, agName:curAgent.name, date, comm, wait, qual, calls, sales});
+      results.push({agId:curAgent.id,agName:curAgent.name,date,comm,wait,qual,calls,sales});
     }
     return results;
   },
+  updateBanner(){
+    const li=DB.lastImport;
+    if(li){
+      document.getElementById('upd-date').textContent=U.fmtDate(li.date);
+      document.getElementById('upd-date').className='upd-date';
+      document.getElementById('upd-period').textContent=`— ${DB.periods[li.period]?.label||li.period}`;
+      document.getElementById('upd-count').textContent=`${li.count||0} lignes · ${li.agents||0} agents`;
+    } else {
+      document.getElementById('upd-date').textContent='Aucune donnée importée';
+      document.getElementById('upd-date').className='upd-date upd-none';
+    }
+  },
 };
 
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // AUTH
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 const Auth = {
-  cur: null,
-  login() {
-    const id = document.getElementById('log-id').value.trim();
-    const pw = document.getElementById('log-pw').value;
+  cur:null,
+  login(){
+    const id=document.getElementById('log-id').value.trim(),pw=document.getElementById('log-pw').value;
     document.getElementById('lerr').style.display='none';
-    if (id.toUpperCase()==='SUPER' && pw==='1234') {
-      Auth.cur={role:'admin',name:'Superviseur',id:'SUPER',color:'#ef4444'};
-      App.boot('admin'); return;
-    }
-    // Accepte l'ID interne (FATIMA_01) OU l'ID Vicidial
-    const ag = DB.agents.find(a=>(a.id===id||a.viciId===id) && a.pw===pw);
-    if (ag) { Auth.cur={...ag,role:'agent'}; App.boot('agent'); }
+    if(id.toUpperCase()==='SUPER'&&pw==='1234'){Auth.cur={role:'admin',name:'Superviseur',id:'SUPER',color:'#ef4444'};App.boot('admin');return;}
+    const ag=DB.agents.find(a=>(a.id===id||a.viciId===id)&&a.pw===pw);
+    if(ag){Auth.cur={...ag,role:'agent'};App.boot('agent');}
     else document.getElementById('lerr').style.display='block';
   },
-  logout(){ location.reload(); }
+  logout(){location.reload();}
 };
 
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // APP
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 const App = {
-  boot(role) {
+  boot(role){
     document.getElementById('login-ov').style.opacity='0';
     setTimeout(()=>document.getElementById('login-ov').style.display='none',400);
     document.getElementById('sbnm').textContent=Auth.cur.name;
@@ -498,6 +539,7 @@ const App = {
     const sel=document.getElementById('psel');
     sel.innerHTML=Object.entries(DB.periods).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
     sel.value=DB.period;
+    U.updateBanner();
     const tick=()=>{
       const n=new Date();
       document.getElementById('ltime').textContent=n.toLocaleTimeString('fr-FR');
@@ -506,101 +548,114 @@ const App = {
     tick(); setInterval(tick,1000);
     R.go(role==='admin'?'ad-team':'ag-dash');
   },
-  setPeriod(v){ DB.period=v; save(); const a=document.querySelector('.ni.active'); if(a)a.click(); },
+  setPeriod(v){DB.period=v;save();const a=document.querySelector('.ni.active');if(a)a.click();},
   toast(msg,type='s'){
-    const c=document.getElementById('toasts');
-    const el=document.createElement('div');
-    el.className=`toast ${type}`; el.textContent=msg; c.appendChild(el);
+    const c=document.getElementById('toasts'),el=document.createElement('div');
+    el.className=`toast ${type}`;el.textContent=msg;c.appendChild(el);
     setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3500);
   }
 };
 
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // ROUTER
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 const R = {
-  go(path,el) {
+  go(path,el){
     if(el){
       const p=el.closest('[id^="nav-"]');
-      if(p) p.querySelectorAll('.ni').forEach(i=>i.classList.remove('active'));
+      if(p)p.querySelectorAll('.ni').forEach(i=>i.classList.remove('active'));
       el.classList.add('active');
     }
-    const titles={'ag-dash':'Tableau de bord','ag-hist':'Historique détaillé','ag-stats':'Mes statistiques',
-      'ad-team':'Vue équipe','ad-detail':'Détail par agent','ad-import':'Import Vicidial',
-      'ad-mtg':'Réunions & Coaching','ad-agents':'Gestion des agents','ad-periodes':'Périodes & Objectifs','ad-export':'Exports & Rapports'};
+    const titles={
+      'ag-dash':'Tableau de bord','ag-hist':'Historique détaillé','ag-stats':'Mes statistiques','ag-perf':'Mes indicateurs clés',
+      'ad-team':'Vue équipe','ad-detail':'Détail par agent','ad-alerts':'Agents en alerte',
+      'ad-import':'Import Vicidial','ad-mtg':'Réunions & Coaching',
+      'ad-agents':'Gestion agents','ad-periodes':'Périodes & Objectifs','ad-export':'Exports & Rapports'
+    };
     document.getElementById('pt').textContent=titles[path]||path;
     V[path]?.();
   }
 };
 
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// CHART HELPERS
+// ═══════════════════════════════════════════════
+function destroyChart(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const existing=Chart.getChart(el);
+  if(existing) existing.destroy();
+}
+const CHART_OPTS = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},
+  scales:{
+    x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{color:'rgba(255,255,255,.04)'}},
+    y:{ticks:{color:'#7a8394',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}
+  }
+};
+
+// ═══════════════════════════════════════════════
 // VUES
-// ══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 const V = {
 
-// ── AGENT DASHBOARD ──────────────────────────────────────────────────
-'ag-dash'() {
-  const s=U.calc(Auth.cur.id, DB.period);
+// ══ AGENT DASHBOARD ════════════════════════════════════════════════
+'ag-dash'(){
+  const s=U.calc(Auth.cur.id,DB.period);
   const cfg=DB.periods[DB.period]||{};
-  const today=U.today();
-  const tr=s.recs.find(r=>r.date===today);
-  const tC=tr?.comm||0, tW=tr?.wait||0, tQ=tr?.qual||0, tM=tr?.mtg||0;
-  const tQP=Math.min(tQ,QUAL_CAP), ttot=tC+tW+tQP+tM;
-  const p=s.pct, bT=Math.max(1,s.tC+s.tW+s.tQP+s.tM);
-  const rest=Math.max(0,s.goalH*3600-s.tot);
-  const joursRest=Math.ceil(rest/21600);
+  const today=U.today(),tr=s.recs.find(r=>r.date===today);
+  const tC=tr?.comm||0,tW=tr?.wait||0,tQ=tr?.qual||0,tM=tr?.mtg||0;
+  const tQP=Math.min(tQ,QUAL_CAP),ttot=tC+tW+tQP+tM;
+  const p=s.pct,rest=Math.max(0,s.goalH*3600-s.tot);
+  const tmcD=U.tmc(tC,tr?.calls||0),tmcM=U.tmc(s.tC,s.tCalls);
   const mtgLog=DB.mtg_log.filter(m=>m.agId===Auth.cur.id&&m.period===DB.period);
-  const types={coaching:'Coaching',reunion:'Réunion équipe',decorticage:'Décorticage appels',formation:'Formation'};
+  const types={coaching:'Coaching',reunion:'Réunion équipe',decorticage:'Décorticage',formation:'Formation'};
+  const bT=Math.max(1,s.tC+s.tW+s.tQP+s.tM);
 
   document.getElementById('view').innerHTML=`
     <div class="rtp">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
         <div class="dot-live"></div>
         <span style="font-weight:700;font-size:14px">Production du jour</span>
-        <span style="color:var(--dim);font-size:13px">— ${U.fmtDate(today)}</span>
+        <span style="color:var(--dim);font-size:12px">— ${U.fmtDate(today)}</span>
         ${!tr?'<span class="badge ba">Aucune donnée aujourd\'hui</span>':''}
       </div>
       <div class="rtg">
         <div class="rti"><div class="rtl" style="color:var(--acc)">Communication</div><div class="rtv" style="color:var(--acc)">${U.hms(tC)}</div><div class="rts">Appels</div></div>
         <div class="rti"><div class="rtl" style="color:var(--amb)">Attente fiches</div><div class="rtv" style="color:var(--amb)">${U.hms(tW)}</div><div class="rts">Dispo</div></div>
-        <div class="rti"><div class="rtl" style="color:var(--pur)">Qualification</div><div class="rtv" style="color:var(--pur)">${U.hms(tQP)}</div><div class="rts">${tQ>QUAL_CAP?`<span style="color:var(--red)">+${U.hms(tQ-QUAL_CAP)} exclu</span>`:'≤ 30min OK'}</div></div>
+        <div class="rti"><div class="rtl" style="color:var(--pur)">Qualification</div><div class="rtv" style="color:var(--pur)">${U.hms(tQP)}</div><div class="rts">${tQ>QUAL_CAP?`<span style='color:var(--red)'>+${U.hms(tQ-QUAL_CAP)} exclu</span>`:'≤ 30min OK'}</div></div>
         <div class="rti"><div class="rtl" style="color:var(--grn)">Réunions</div><div class="rtv" style="color:var(--grn)">${U.hms(tM)}</div><div class="rts">Coaching</div></div>
         <div class="rti" style="border-left:2px solid var(--cyn)"><div class="rtl" style="color:var(--cyn)">Total journée</div><div class="rtv" style="color:var(--cyn)">${U.hms(ttot)}</div><div class="rts">Payable</div></div>
         <div class="rti" style="border-left:2px solid var(--red)"><div class="rtl" style="color:var(--red)">RDV du jour</div><div class="rtv" style="color:var(--red)">${tr?.sales||0}</div><div class="rts">sur ${tr?.calls||0} appels</div></div>
+        <div class="rti" style="border-left:2px solid var(--ora)"><div class="rtl" style="color:var(--ora)">TMC du jour</div><div class="rtv" style="color:var(--ora)">${U.secToMMSS(tmcD)}</div><div class="rts">moy/appel</div></div>
       </div>
     </div>
-
     <div class="kg">
       <div class="kc ktot">
         <div class="kl">Total payé — ${cfg.label||DB.period}</div>
         <div class="kv" style="color:var(--cyn)">${U.hms(s.tot)}</div>
         <div class="ks">Objectif : ${s.goalH}h</div>
         <div class="pb"><div class="pf ${U.pcls(p)}" style="width:${p}%"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--dim)">
+        <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--dim)">
           <span>${p.toFixed(1)}% atteint</span>
-          <span>${rest>0?`Reste : ${U.hms(rest)} (~${joursRest}j)`:'✓ Objectif atteint !'}</span>
+          <span>${rest>0?`Reste : ${U.hms(rest)}`:'✓ Objectif atteint !'}</span>
         </div>
       </div>
-      <div class="kc kcomm"><div class="kl">Communication</div><div class="kv" style="color:var(--acc)">${U.hms(s.tC)}</div><div class="ks">${((s.tC/Math.max(1,s.tot))*100).toFixed(0)}% du total</div></div>
-      <div class="kc kwait"><div class="kl">Attente fiches</div><div class="kv" style="color:var(--amb)">${U.hms(s.tW)}</div><div class="ks">${((s.tW/Math.max(1,s.tot))*100).toFixed(0)}% du total</div></div>
+      <div class="kc kcomm"><div class="kl">Communication mois</div><div class="kv" style="color:var(--acc)">${U.hms(s.tC)}</div><div class="ks">${((s.tC/Math.max(1,s.tot))*100).toFixed(0)}% du total</div></div>
       <div class="kc krdv"><div class="kl">Taux RDV</div><div class="kv" style="color:var(--red)">${s.rdvRate.toFixed(1)}%</div><div class="ks">${s.tSales} RDV · ${s.tCalls} appels</div></div>
+      <div class="kc ktmc"><div class="kl">TMC moyen mois</div><div class="kv" style="color:var(--ora)">${U.secToMMSS(tmcM)}</div><div class="ks">Temps moy. communication/appel</div></div>
     </div>
-
     <div class="kg kg3">
-      <div class="kc kqual">
-        <div class="kl">Qualification (payée)</div>
-        <div class="kv" style="color:var(--pur)">${U.hms(s.tQP)}</div>
-        <div class="ks">Réel: ${U.hms(s.tQR)}${s.tQR>s.tQP?`<br><span style="color:var(--red)">+${U.hms(s.tQR-s.tQP)} hors plafond</span>`:'<br>Aucun dépassement'}</div>
-      </div>
+      <div class="kc kqual"><div class="kl">Qualification (payée)</div><div class="kv" style="color:var(--pur)">${U.hms(s.tQP)}</div><div class="ks">Réel: ${U.hms(s.tQR)}${s.tQR>s.tQP?`<br><span style='color:var(--red)'>+${U.hms(s.tQR-s.tQP)} exclu</span>`:'<br>Aucun dépassement'}</div></div>
       <div class="kc kmtg"><div class="kl">Réunions / Coaching</div><div class="kv" style="color:var(--grn)">${U.hms(s.tM)}</div><div class="ks">${mtgLog.length} session(s) ce mois</div></div>
       <div class="kc"><div class="kl">Jours travaillés</div><div class="kv">${s.recs.length}</div><div class="ks">sur ${cfg.days||22} ouvrés</div></div>
     </div>
-
     <div class="g2">
       <div class="card">
         <div class="ch"><div class="ct">Répartition mensuelle</div><span class="badge bc">${cfg.label||DB.period}</span></div>
-        <div style="height:220px"><canvas id="ch-pie"></canvas></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;font-size:12px">
+        <div style="height:200px"><canvas id="ch-pie"></canvas></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:11px">
           <span style="color:var(--acc)">■ Comm. ${((s.tC/bT)*100).toFixed(0)}%</span>
           <span style="color:var(--amb)">■ Attente ${((s.tW/bT)*100).toFixed(0)}%</span>
           <span style="color:var(--pur)">■ Qual. ${((s.tQP/bT)*100).toFixed(0)}%</span>
@@ -609,75 +664,55 @@ const V = {
       </div>
       <div class="card">
         <div class="ch"><div class="ct">Progression cumulée</div><span class="badge ${U.pbadge(p)}">${p.toFixed(1)}%</span></div>
-        <div style="height:220px"><canvas id="ch-line"></canvas></div>
+        <div style="height:200px"><canvas id="ch-line"></canvas></div>
       </div>
     </div>
-
-    ${mtgLog.length?`<div class="card">
-      <div class="ch"><div class="ct">Réunions & Coaching — ${cfg.label||DB.period}</div><span class="badge bg">${U.hms(s.tM)} total</span></div>
-      ${mtgLog.map(m=>`<div class="mtgi">
-        <span style="font-size:16px">📅</span>
-        <span style="flex:1;font-weight:600;font-size:12px">${types[m.type]||m.type}</span>
-        <span style="color:var(--dim);font-size:11px">${U.fmtDate(m.date)}</span>
-        <span style="color:var(--grn);font-family:'JetBrains Mono';font-weight:700">+${m.durMin}min</span>
-        ${m.note?`<span style="font-size:11px;color:var(--dim)">${m.note}</span>`:''}
-      </div>`).join('')}
+    ${mtgLog.length?`<div class="card"><div class="ch"><div class="ct">Réunions & Coaching — ${cfg.label}</div><span class="badge bg">${U.hms(s.tM)} total</span></div>
+      ${mtgLog.map(m=>`<div class="mtgi"><span style="font-size:14px">📅</span><span style="flex:1;font-weight:600;font-size:12px">${types[m.type]||m.type}</span><span style="color:var(--dim);font-size:11px">${U.fmtDate(m.date)}</span><span style="color:var(--grn);font-family:'JetBrains Mono';font-weight:700">+${m.durMin}min</span>${m.note?`<span style="font-size:11px;color:var(--mu)">${m.note}</span>`:''}</div>`).join('')}
     </div>`:''}`;
-
   requestAnimationFrame(()=>{
+    destroyChart('ch-pie');
     const pie=document.getElementById('ch-pie');
-    if(pie) new Chart(pie.getContext('2d'),{type:'doughnut',data:{labels:['Comm.','Attente','Qual.','Réunions'],datasets:[{data:[s.tC,s.tW,s.tQP,s.tM],backgroundColor:['#4f7ef8','#f59e0b','#a78bfa','#10b981'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'70%'}});
+    if(pie) new Chart(pie,{type:'doughnut',data:{labels:['Comm.','Attente','Qual.','Réunions'],datasets:[{data:[s.tC,s.tW,s.tQP,s.tM],backgroundColor:['#4f7ef8','#f59e0b','#a78bfa','#10b981'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'70%'}});
     const sorted=[...s.recs].sort((a,b)=>a.date.localeCompare(b.date));
     let cum=0; const lbs=[],vals=[];
     sorted.forEach(r=>{cum+=r.comm+r.wait+Math.min(r.qual,QUAL_CAP)+(r.mtg||0);lbs.push(U.fmtDate(r.date));vals.push((cum/3600).toFixed(2));});
+    destroyChart('ch-line');
     const line=document.getElementById('ch-line');
-    if(line) new Chart(line.getContext('2d'),{type:'line',data:{labels:lbs,datasets:[{label:'Heures cumulées',data:vals,borderColor:'#4f7ef8',backgroundColor:'rgba(79,126,248,.08)',fill:true,tension:.4,pointRadius:3},{label:'Objectif',data:lbs.map(()=>s.goalH),borderColor:'rgba(255,255,255,.15)',borderDash:[6,4],pointRadius:0,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'}}}}});
+    if(line) new Chart(line,{type:'line',data:{labels:lbs,datasets:[{label:'Heures cumulées',data:vals,borderColor:'#4f7ef8',backgroundColor:'rgba(79,126,248,.08)',fill:true,tension:.4,pointRadius:3},{label:'Objectif',data:lbs.map(()=>s.goalH),borderColor:'rgba(255,255,255,.15)',borderDash:[6,4],pointRadius:0,fill:false}]},options:{...CHART_OPTS,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}}}});
   });
 },
 
-// ── AGENT HISTORIQUE ─────────────────────────────────────────────────
-'ag-hist'() {
-  const s=U.calc(Auth.cur.id, DB.period);
+// ══ AGENT HISTORIQUE ════════════════════════════════════════════════
+'ag-hist'(){
+  const s=U.calc(Auth.cur.id,DB.period);
   const sorted=[...s.recs].sort((a,b)=>b.date.localeCompare(a.date));
   const rows=sorted.map(r=>{
-    const qp=Math.min(r.qual,QUAL_CAP), ov=r.qual-qp, tot=r.comm+r.wait+qp+(r.mtg||0);
+    const qp=Math.min(r.qual,QUAL_CAP),ov=r.qual-qp,tot=r.comm+r.wait+qp+(r.mtg||0);
     const rate=r.calls>0?((r.sales/r.calls)*100).toFixed(1):'—';
-    return `<tr>
-      <td class="tn">${U.fmtDate(r.date)}</td>
-      <td style="color:var(--acc)">${U.hms(r.comm)}</td>
-      <td style="color:var(--amb)">${U.hms(r.wait)}</td>
-      <td style="color:var(--pur)">${U.hms(qp)}${ov>0?`<br><span style="font-size:10px;color:var(--red)">+${U.hms(ov)} exclu</span>`:''}</td>
-      <td style="color:var(--grn)">${U.hms(r.mtg||0)}</td>
-      <td style="color:var(--cyn);font-weight:700">${U.hms(tot)}</td>
-      <td>${r.calls||0}</td><td style="color:var(--red);font-weight:700">${r.sales||0}</td>
-      <td>${rate !== '—' ? rate+'%' : '—'}</td>
-    </tr>`;
+    const tmc=U.secToMMSS(U.tmc(r.comm,r.calls||0));
+    return `<tr><td class="tn">${U.fmtDate(r.date)}</td><td style="color:var(--acc)">${U.hms(r.comm)}</td><td style="color:var(--amb)">${U.hms(r.wait)}</td><td style="color:var(--pur)">${U.hms(qp)}${ov>0?`<br><span style="font-size:9px;color:var(--red)">+${U.hms(ov)} exclu</span>`:''}</td><td style="color:var(--grn)">${U.hms(r.mtg||0)}</td><td style="color:var(--cyn);font-weight:700">${U.hms(tot)}</td><td>${r.calls||0}</td><td style="color:var(--red);font-weight:700">${r.sales||0}</td><td>${rate!=='—'?rate+'%':'—'}</td><td style="color:var(--ora)">${tmc}</td></tr>`;
   }).join('');
   document.getElementById('view').innerHTML=`
-    <div class="ibox"><strong style="color:var(--acc)">Qualification :</strong> Plafonnée à 30min/jour. Dépassement affiché en rouge, non payé.</div>
+    <div class="ibox"><strong style="color:var(--acc)">Qualification :</strong> Plafonnée à 30min/jour. Dépassement en rouge, non payé. <strong style="color:var(--ora)">TMC</strong> = temps moyen de communication par appel (mm:ss).</div>
     <div class="card">
-      <div class="ch">
-        <div><div class="ct">Relevé journalier — ${DB.periods[DB.period]?.label}</div></div>
-        <button class="btn btng bsm" onclick="V.exportCSV('${Auth.cur.id}')">⬇ Export CSV</button>
-      </div>
+      <div class="ch"><div class="ct">Relevé journalier — ${DB.periods[DB.period]?.label}</div><button class="btn btng bsm" onclick="V.exportCSV('${Auth.cur.id}')">⬇ Export CSV</button></div>
       <div class="tw"><table>
-        <thead><tr><th>Date</th><th style="color:var(--acc)">Communication</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qualification</th><th style="color:var(--grn)">Réunions</th><th style="color:var(--cyn)">Total payable</th><th>Appels</th><th style="color:var(--red)">RDV</th><th>Taux</th></tr></thead>
-        <tbody>
-          ${rows||'<tr><td colspan="9" class="empty">Aucune donnée.</td></tr>'}
-          ${sorted.length?`<tr class="trtot"><td class="tb">TOTAL</td><td style="color:var(--acc)">${U.hms(s.tC)}</td><td style="color:var(--amb)">${U.hms(s.tW)}</td><td style="color:var(--pur)">${U.hms(s.tQP)}</td><td style="color:var(--grn)">${U.hms(s.tM)}</td><td style="color:var(--cyn)">${U.hms(s.tot)}</td><td>${s.tCalls}</td><td style="color:var(--red)">${s.tSales}</td><td>${s.rdvRate.toFixed(1)}%</td></tr>`:''}
+        <thead><tr><th>Date</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual.</th><th style="color:var(--grn)">Réunions</th><th style="color:var(--cyn)">Total</th><th>Appels</th><th style="color:var(--red)">RDV</th><th>Taux RDV</th><th style="color:var(--ora)">TMC</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="10" class="empty">Aucune donnée.</td></tr>'}
+        ${sorted.length?`<tr class="trtot"><td class="tb">TOTAL</td><td style="color:var(--acc)">${U.hms(s.tC)}</td><td style="color:var(--amb)">${U.hms(s.tW)}</td><td style="color:var(--pur)">${U.hms(s.tQP)}</td><td style="color:var(--grn)">${U.hms(s.tM)}</td><td style="color:var(--cyn)">${U.hms(s.tot)}</td><td>${s.tCalls}</td><td style="color:var(--red)">${s.tSales}</td><td>${s.rdvRate.toFixed(1)}%</td><td style="color:var(--ora)">${U.secToMMSS(s.tmcSec)}</td></tr>`:''}
         </tbody>
       </table></div>
     </div>`;
 },
 
-exportCSV(agId) {
+exportCSV(agId){
   const ag=DB.agents.find(a=>a.id===agId)||{name:agId};
-  const s=U.calc(agId, DB.period);
-  let csv='Date;Communication;Attente;Qualification payée;Réunions;Total;Appels;RDV;Taux RDV\n';
+  const s=U.calc(agId,DB.period);
+  let csv='Date;Communication;Attente;Qualification payée;Réunions;Total;Appels;RDV;Taux RDV;TMC (sec)\n';
   [...s.recs].sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
     const qp=Math.min(r.qual,QUAL_CAP),tot=r.comm+r.wait+qp+(r.mtg||0);
-    const rate=r.calls>0?((r.sales/r.calls)*100).toFixed(1):'0';
-    csv+=`${r.date};${U.hms(r.comm)};${U.hms(r.wait)};${U.hms(qp)};${U.hms(r.mtg||0)};${U.hms(tot)};${r.calls||0};${r.sales||0};${rate}%\n`;
+    csv+=`${r.date};${U.hms(r.comm)};${U.hms(r.wait)};${U.hms(qp)};${U.hms(r.mtg||0)};${U.hms(tot)};${r.calls||0};${r.sales||0};${r.calls>0?((r.sales/r.calls)*100).toFixed(1)+'%':'0%'};${U.tmc(r.comm,r.calls||0)}\n`;
   });
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
@@ -685,18 +720,14 @@ exportCSV(agId) {
   a.click(); App.toast('Export CSV téléchargé','s');
 },
 
-// ── AGENT STATS ──────────────────────────────────────────────────────
-'ag-stats'() {
-  const s=U.calc(Auth.cur.id, DB.period);
+// ══ AGENT STATS ═════════════════════════════════════════════════════
+'ag-stats'(){
+  const s=U.calc(Auth.cur.id,DB.period);
   const days=s.recs.filter(r=>r.comm+r.wait+r.qual+(r.mtg||0)>0);
   const n=Math.max(1,days.length);
   const sorted=[...s.recs].sort((a,b)=>a.date.localeCompare(b.date));
-  const aD=s.tot/n;
-  const maxD=days.length?Math.max(...days.map(r=>r.comm+r.wait+Math.min(r.qual,QUAL_CAP)+(r.mtg||0))):0;
-  const minD=days.length?Math.min(...days.map(r=>r.comm+r.wait+Math.min(r.qual,QUAL_CAP)+(r.mtg||0))):0;
-  const jDep=days.filter(r=>r.qual>QUAL_CAP).length;
-  const tDep=days.reduce((a,r)=>a+Math.max(0,r.qual-QUAL_CAP),0);
-
+  const aD=s.tot/n,maxD=days.length?Math.max(...days.map(r=>r.comm+r.wait+Math.min(r.qual,QUAL_CAP)+(r.mtg||0))):0;
+  const jDep=days.filter(r=>r.qual>QUAL_CAP).length,tDep=days.reduce((a,r)=>a+Math.max(0,r.qual-QUAL_CAP),0);
   document.getElementById('view').innerHTML=`
     <div class="kg">
       <div class="kc"><div class="kl">Jours travaillés</div><div class="kv">${days.length}</div><div class="ks">/ ${DB.periods[DB.period]?.days||22} ouvrés</div></div>
@@ -706,150 +737,216 @@ exportCSV(agId) {
     </div>
     <div class="g2">
       <div class="card">
-        <div class="ct" style="margin-bottom:16px">Moyennes par type</div>
+        <div class="ct" style="margin-bottom:14px">Moyennes par type</div>
         ${[['Communication',s.tC/n,'var(--acc)'],['Attente fiches',s.tW/n,'var(--amb)'],['Qualification',s.tQP/n,'var(--pur)'],['Réunions',s.tM/n,'var(--grn)']].map(([l,v,c])=>`
-          <div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px">
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">
               <span style="color:${c}">${l}</span>
               <span style="font-family:'JetBrains Mono'">${U.hms(v)}</span>
             </div>
             <div class="pb"><div class="pf b" style="background:${c};width:${(v/Math.max(1,aD)*100).toFixed(0)}%"></div></div>
           </div>`).join('')}
         <div class="divider"></div>
-        <div style="font-size:12px;color:var(--dim)">Jours avec dépassement qualification : <strong style="color:var(--red)">${jDep}</strong> (${U.hms(tDep)} hors plafond)</div>
+        <div style="font-size:11px;color:var(--dim)">Jours avec dépass. qual. : <strong style="color:var(--red)">${jDep}</strong> (${U.hms(tDep)} hors plafond)</div>
       </div>
       <div class="card">
-        <div class="ct" style="margin-bottom:16px">Activité journalière</div>
-        <div style="height:260px"><canvas id="ch-bar"></canvas></div>
+        <div class="ct" style="margin-bottom:14px">Activité journalière (heures)</div>
+        <div style="height:240px"><canvas id="ch-bar"></canvas></div>
       </div>
     </div>
-    <div class="card">
-      <div class="ct" style="margin-bottom:16px">Performance RDV par jour</div>
-      <div style="height:200px"><canvas id="ch-rdv"></canvas></div>
+    <div class="g2">
+      <div class="card">
+        <div class="ct" style="margin-bottom:14px">Taux RDV par jour (%)</div>
+        <div style="height:180px"><canvas id="ch-rdv"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct" style="margin-bottom:14px">TMC par jour (min:sec)</div>
+        <div style="height:180px"><canvas id="ch-tmc"></canvas></div>
+      </div>
     </div>`;
-
   requestAnimationFrame(()=>{
+    destroyChart('ch-bar');
     const bar=document.getElementById('ch-bar');
-    if(bar) new Chart(bar.getContext('2d'),{type:'bar',data:{labels:sorted.map(r=>U.fmtDate(r.date)),datasets:[{label:'Comm.',data:sorted.map(r=>r.comm/3600),backgroundColor:'#4f7ef8',stack:'a'},{label:'Attente',data:sorted.map(r=>r.wait/3600),backgroundColor:'#f59e0b',stack:'a'},{label:'Qual.',data:sorted.map(r=>Math.min(r.qual,QUAL_CAP)/3600),backgroundColor:'#a78bfa',stack:'a'},{label:'Réunions',data:sorted.map(r=>(r.mtg||0)/3600),backgroundColor:'#10b981',stack:'a'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{x:{stacked:true,ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{stacked:true,ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Heures',color:'#7a8394'}}}}});
-    const rdv=document.getElementById('ch-rdv');
-    if(rdv) new Chart(rdv.getContext('2d'),{type:'bar',data:{labels:sorted.map(r=>U.fmtDate(r.date)),datasets:[{label:'RDV',data:sorted.map(r=>r.sales||0),backgroundColor:'rgba(239,68,68,.7)',yAxisID:'y'},{label:'Taux %',data:sorted.map(r=>r.calls>0?((r.sales/r.calls)*100).toFixed(1):0),type:'line',yAxisID:'y1',borderColor:'#22d3ee',pointRadius:4,backgroundColor:'transparent'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'RDV',color:'#7a8394'}},y1:{position:'right',ticks:{color:'#22d3ee'},grid:{display:false},title:{display:true,text:'Taux %',color:'#22d3ee'}}}}});
+    if(bar) new Chart(bar,{type:'bar',data:{labels:sorted.map(r=>U.fmtDate(r.date)),datasets:[{label:'Comm.',data:sorted.map(r=>r.comm/3600),backgroundColor:'#4f7ef8',stack:'a'},{label:'Attente',data:sorted.map(r=>r.wait/3600),backgroundColor:'#f59e0b',stack:'a'},{label:'Qual.',data:sorted.map(r=>Math.min(r.qual,QUAL_CAP)/3600),backgroundColor:'#a78bfa',stack:'a'},{label:'Réunions',data:sorted.map(r=>(r.mtg||0)/3600),backgroundColor:'#10b981',stack:'a'}]},options:{...CHART_OPTS,scales:{x:{stacked:true,ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{stacked:true,ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Heures',color:'#7a8394'}}}}});
+    destroyChart('ch-rdv');
+    const rdvc=document.getElementById('ch-rdv');
+    if(rdvc) new Chart(rdvc,{type:'line',data:{labels:sorted.map(r=>U.fmtDate(r.date)),datasets:[{label:'Taux RDV %',data:sorted.map(r=>r.calls>0?parseFloat(((r.sales/r.calls)*100).toFixed(2)):null),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.08)',fill:true,tension:.4,pointRadius:4,spanGaps:true}]},options:{...CHART_OPTS,scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7a8394',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'}}}}});
+    destroyChart('ch-tmc');
+    const tmcc=document.getElementById('ch-tmc');
+    if(tmcc) new Chart(tmcc,{type:'line',data:{labels:sorted.map(r=>U.fmtDate(r.date)),datasets:[{label:'TMC (sec)',data:sorted.map(r=>r.calls>0?U.tmc(r.comm,r.calls):null),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.08)',fill:true,tension:.4,pointRadius:4,spanGaps:true}]},options:{...CHART_OPTS,scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7a8394',callback:v=>{const m=Math.floor(v/60),s=Math.floor(v%60);return `${m}:${String(s).padStart(2,'0')}`;}},grid:{color:'rgba(255,255,255,.04)'}}}}});
   });
 },
 
-// ── ADMIN VUE ÉQUIPE ─────────────────────────────────────────────────
-'ad-team'() {
-  const rows=DB.agents.map(ag=>{const s=U.calc(ag.id,DB.period);return{ag,s};}).sort((a,b)=>b.s.pct-a.s.pct);
-  const tH=rows.reduce((a,r)=>a+r.s.h,0);
-  const avgP=rows.length?rows.reduce((a,r)=>a+r.s.pct,0)/rows.length:0;
-  const tSales=rows.reduce((a,r)=>a+r.s.tSales,0);
-  const tCalls=rows.reduce((a,r)=>a+r.s.tCalls,0);
-  const above90=rows.filter(r=>r.s.pct>=90).length;
-
+// ══ AGENT INDICATEURS CLÉS ══════════════════════════════════════════
+'ag-perf'(){
+  const s=U.calc(Auth.cur.id,DB.period);
+  const sorted=[...s.recs].sort((a,b)=>a.date.localeCompare(b.date));
+  const peers=DB.agents.map(a=>U.calc(a.id,DB.period));
+  const avgTmc=peers.reduce((a,p)=>a+p.tmcSec,0)/Math.max(1,peers.length);
+  const avgRdv=peers.reduce((a,p)=>a+p.rdvRate,0)/Math.max(1,peers.length);
+  const myRank=peers.filter(p=>p.rdvRate>s.rdvRate).length+1;
+  const myRankTmc=peers.filter(p=>p.tmcSec>s.tmcSec).length+1;
+  const cfg=DB.periods[DB.period]||{};
   document.getElementById('view').innerHTML=`
-    <div class="kg kg5">
-      <div class="kc"><div class="kl">Agents</div><div class="kv">${DB.agents.length}</div><div class="ks">${DB.periods[DB.period]?.label}</div></div>
-      <div class="kc ktot"><div class="kl">Total équipe</div><div class="kv" style="color:var(--cyn)">${U.hms(tH*3600)}</div><div class="ks">heures payables</div></div>
-      <div class="kc"><div class="kl">Progression moy.</div><div class="kv" style="color:${U.pcolor(avgP)}">${avgP.toFixed(1)}%</div><div class="ks">objectif ${DB.periods[DB.period]?.goalH||132}h</div></div>
-      <div class="kc krdv"><div class="kl">RDV équipe</div><div class="kv" style="color:var(--red)">${tSales}</div><div class="ks">sur ${tCalls} appels</div></div>
-      <div class="kc"><div class="kl">≥ 90% objectif</div><div class="kv" style="color:var(--grn)">${above90}</div><div class="ks">agents en avance</div></div>
+    <div class="kg kg3">
+      <div class="kc krdv"><div class="kl">Taux RDV mois</div><div class="kv" style="color:var(--red);font-size:26px">${s.rdvRate.toFixed(2)}%</div><div class="ks">Moy. équipe : ${avgRdv.toFixed(1)}% · Rang : ${myRank}/${peers.length}</div></div>
+      <div class="kc ktmc"><div class="kl">TMC moyen (mm:ss)</div><div class="kv" style="color:var(--ora);font-size:26px">${U.secToMMSS(s.tmcSec)}</div><div class="ks">Moy. équipe : ${U.secToMMSS(Math.round(avgTmc))} · Rang : ${myRankTmc}/${peers.length}</div></div>
+      <div class="kc kcomm"><div class="kl">Appels total</div><div class="kv" style="color:var(--acc);font-size:26px">${s.tCalls}</div><div class="ks">${s.tSales} RDV classés</div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="ch"><div class="ct">Évolution taux RDV (%) — ${cfg.label||DB.period}</div></div>
+        <div style="height:220px"><canvas id="pk-rdv"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ct">Évolution TMC (sec/appel) — ${cfg.label||DB.period}</div></div>
+        <div style="height:220px"><canvas id="pk-tmc"></canvas></div>
+      </div>
     </div>
     <div class="card">
-      <div class="ch">
-        <div><div class="ct">Performance équipe — ${DB.periods[DB.period]?.label}</div></div>
-        <button class="btn btng bsm" onclick="V.exportTeam()">⬇ Export CSV</button>
-      </div>
+      <div class="ch"><div class="ct">Progression cumulative RDV vs heures</div></div>
+      <div style="height:200px"><canvas id="pk-dual"></canvas></div>
+    </div>`;
+  requestAnimationFrame(()=>{
+    const lbs=sorted.map(r=>U.fmtDate(r.date));
+    destroyChart('pk-rdv');
+    const r1=document.getElementById('pk-rdv');
+    if(r1) new Chart(r1,{type:'bar',data:{labels:lbs,datasets:[{label:'Taux RDV %',data:sorted.map(r=>r.calls>0?parseFloat(((r.sales/r.calls)*100).toFixed(2)):0),backgroundColor:sorted.map(r=>r.calls>0&&(r.sales/r.calls)*100>=avgRdv?'rgba(16,185,129,.7)':'rgba(239,68,68,.6)'),borderRadius:4},{label:'Moy. équipe',data:sorted.map(()=>parseFloat(avgRdv.toFixed(2))),type:'line',borderColor:'rgba(255,255,255,.3)',borderDash:[4,4],pointRadius:0,fill:false}]},options:{...CHART_OPTS,scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7a8394',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'}}}}});
+    destroyChart('pk-tmc');
+    const t1=document.getElementById('pk-tmc');
+    if(t1) new Chart(t1,{type:'bar',data:{labels:lbs,datasets:[{label:'TMC (sec)',data:sorted.map(r=>r.calls>0?U.tmc(r.comm,r.calls):0),backgroundColor:sorted.map(r=>r.calls>0&&U.tmc(r.comm,r.calls)>=avgTmc?'rgba(249,115,22,.7)':'rgba(239,68,68,.6)'),borderRadius:4},{label:'Moy. équipe',data:sorted.map(()=>Math.round(avgTmc)),type:'line',borderColor:'rgba(255,255,255,.3)',borderDash:[4,4],pointRadius:0,fill:false}]},options:{...CHART_OPTS,scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7a8394',callback:v=>{const m=Math.floor(v/60),s=Math.floor(v%60);return`${m}:${String(s).padStart(2,'0')}`;}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+    let cumH=0,cumS=0;const cH=[],cS=[];
+    sorted.forEach(r=>{cumH+=r.comm+r.wait+Math.min(r.qual,QUAL_CAP)+(r.mtg||0);cumS+=r.sales||0;cH.push((cumH/3600).toFixed(2));cS.push(cumS);});
+    destroyChart('pk-dual');
+    const d1=document.getElementById('pk-dual');
+    if(d1) new Chart(d1,{type:'line',data:{labels:lbs,datasets:[{label:'Heures cumulées',data:cH,borderColor:'#4f7ef8',fill:false,tension:.4,pointRadius:3,yAxisID:'y'},{label:'RDV cumulés',data:cS,borderColor:'#ef4444',fill:false,tension:.4,pointRadius:3,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Heures',color:'#7a8394'}},y1:{position:'right',ticks:{color:'var(--red)'},grid:{display:false},title:{display:true,text:'RDV',color:'var(--red)'}}}}});
+  });
+},
+
+// ══ ADMIN VUE ÉQUIPE ════════════════════════════════════════════════
+'ad-team'(){
+  const rows=DB.agents.map(ag=>{const s=U.calc(ag.id,DB.period);return{ag,s};}).sort((a,b)=>b.s.h-a.s.h);
+  const tH=rows.reduce((a,r)=>a+r.s.h,0);
+  const avgP=rows.length?rows.reduce((a,r)=>a+r.s.pct,0)/rows.length:0;
+  const tSales=rows.reduce((a,r)=>a+r.s.tSales,0),tCalls=rows.reduce((a,r)=>a+r.s.tCalls,0);
+  const avgTmc=rows.length?rows.reduce((a,r)=>a+r.s.tmcSec,0)/rows.length:0;
+  const avgRdv=tCalls>0?tSales/tCalls*100:0;
+  document.getElementById('view').innerHTML=`
+    <div class="kg kg6">
+      <div class="kc"><div class="kl">Agents</div><div class="kv">${DB.agents.length}</div></div>
+      <div class="kc ktot"><div class="kl">Total équipe</div><div class="kv" style="color:var(--cyn)">${U.hms(tH*3600)}</div></div>
+      <div class="kc"><div class="kl">Progression moy.</div><div class="kv" style="color:${U.pcolor(avgP)}">${avgP.toFixed(1)}%</div></div>
+      <div class="kc krdv"><div class="kl">Taux RDV équipe</div><div class="kv" style="color:var(--red)">${avgRdv.toFixed(1)}%</div><div class="ks">${tSales} RDV / ${tCalls} appels</div></div>
+      <div class="kc ktmc"><div class="kl">TMC moyen équipe</div><div class="kv" style="color:var(--ora)">${U.secToMMSS(Math.round(avgTmc))}</div></div>
+      <div class="kc"><div class="kl">Alertes détectées</div><div class="kv" style="color:var(--red)">${DB.agents.filter(a=>U.alertScore(a.id,DB.period)>=45).length}</div><div class="ks">score ≥ 45/100</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Performance équipe — ${DB.periods[DB.period]?.label} <span style="color:var(--dim);font-weight:400;font-size:12px">(trié par heures)</span></div><button class="btn btng bsm" onclick="V.exportTeam()">⬇ Export CSV</button></div>
       ${rows.map(({ag,s})=>{
         const bT=Math.max(1,s.tC+s.tW+s.tQP+s.tM);
-        return `<div class="agr" onclick="V._openDetail('${ag.id}')">
+        const sc=U.alertScore(ag.id,DB.period);
+        return `<div class="agr ${sc>=45?'alert-row-bg':''}" onclick="V._openDetail('${ag.id}')">
           <div class="agav" style="background:${ag.color||'#4f7ef8'}">${U.initials(ag.name)}</div>
           <div class="agi"><div class="agn">${ag.name}</div><div class="agid">${ag.viciId||ag.id}</div></div>
           <div class="agpg">
-            <div style="display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:5px">
+            <div style="display:flex;gap:2px;height:4px;border-radius:3px;overflow:hidden;margin-bottom:4px">
               <div style="background:var(--acc);width:${(s.tC/bT*100).toFixed(1)}%"></div>
               <div style="background:var(--amb);width:${(s.tW/bT*100).toFixed(1)}%"></div>
               <div style="background:var(--pur);width:${(s.tQP/bT*100).toFixed(1)}%"></div>
               <div style="background:var(--grn);width:${(s.tM/bT*100).toFixed(1)}%"></div>
             </div>
-            <div class="pb" style="height:5px"><div class="pf ${U.pcls(s.pct)}" style="width:${s.pct}%"></div></div>
+            <div class="pb" style="height:4px"><div class="pf ${U.pcls(s.pct)}" style="width:${s.pct}%"></div></div>
           </div>
-          <div style="text-align:right;min-width:80px;font-size:11px;font-family:'JetBrains Mono'">
-            <span style="color:var(--red)">${s.tSales} RDV</span><br>
-            <span style="color:var(--dim)">${s.rdvRate.toFixed(1)}%</span>
+          <div style="text-align:right;min-width:70px;font-size:11px">
+            <div style="color:var(--red);font-family:'JetBrains Mono'">${s.rdvRate.toFixed(1)}% RDV</div>
+            <div style="color:var(--ora);font-family:'JetBrains Mono'">TMC ${U.secToMMSS(s.tmcSec)}</div>
           </div>
           <div class="aghr">${U.hms(s.tot)}<br><span style="font-size:10px">${s.recs.length}j</span></div>
           <div class="agpct" style="color:${U.pcolor(s.pct)}">${s.pct.toFixed(1)}%</div>
+          ${sc>=45?`<div class="alert-score ${sc<65?'medium':''}">${sc}</div>`:''}
         </div>`;
       }).join('')}
     </div>
     <div class="g2">
-      <div class="card"><div class="ct" style="margin-bottom:18px">Heures par type</div><div style="height:240px"><canvas id="ch-team"></canvas></div></div>
-      <div class="card"><div class="ct" style="margin-bottom:18px">RDV & Taux de transformation</div><div style="height:240px"><canvas id="ch-rdvt"></canvas></div></div>
+      <div class="card"><div class="ct" style="margin-bottom:16px">Évolution taux RDV équipe (moy. journalière)</div><div style="height:220px"><canvas id="ch-team-rdv"></canvas></div></div>
+      <div class="card"><div class="ct" style="margin-bottom:16px">TMC moyen équipe par agent</div><div style="height:220px"><canvas id="ch-team-tmc"></canvas></div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="ct" style="margin-bottom:16px">Heures par type — équipe</div><div style="height:220px"><canvas id="ch-team-h"></canvas></div></div>
+      <div class="card"><div class="ct" style="margin-bottom:16px">Progression % — classement</div><div style="height:220px"><canvas id="ch-team-p"></canvas></div></div>
     </div>`;
-
-  V._openDetail = (agId) => { R.go('ad-detail'); setTimeout(()=>{ const sel=document.getElementById('det-sel'); if(sel){sel.value=agId;document.getElementById('det-body').innerHTML=V._rdr(agId);}},50); };
-
+  V._openDetail=(agId)=>{R.go('ad-detail');setTimeout(()=>{const sel=document.getElementById('det-sel');if(sel){sel.value=agId;document.getElementById('det-body').innerHTML=V._rdr(agId);}},50);};
   requestAnimationFrame(()=>{
-    const tc=document.getElementById('ch-team');
-    if(tc) new Chart(tc.getContext('2d'),{type:'bar',data:{labels:rows.map(r=>r.ag.name.split(' ')[0]),datasets:[{label:'Comm.',data:rows.map(r=>r.s.tC/3600),backgroundColor:'#4f7ef8',stack:'a'},{label:'Attente',data:rows.map(r=>r.s.tW/3600),backgroundColor:'#f59e0b',stack:'a'},{label:'Qual.',data:rows.map(r=>r.s.tQP/3600),backgroundColor:'#a78bfa',stack:'a'},{label:'Réunions',data:rows.map(r=>r.s.tM/3600),backgroundColor:'#10b981',stack:'a'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{x:{stacked:true,ticks:{color:'#7a8394'},grid:{display:false}},y:{stacked:true,ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Heures',color:'#7a8394'}}}}});
-    const rc=document.getElementById('ch-rdvt');
-    if(rc) new Chart(rc.getContext('2d'),{type:'bar',data:{labels:rows.map(r=>r.ag.name.split(' ')[0]),datasets:[{label:'RDV',data:rows.map(r=>r.s.tSales),backgroundColor:'rgba(239,68,68,.7)',yAxisID:'y'},{label:'Taux %',data:rows.map(r=>parseFloat(r.s.rdvRate.toFixed(1))),type:'line',yAxisID:'y1',borderColor:'#22d3ee',pointRadius:4,backgroundColor:'transparent'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{x:{ticks:{color:'#7a8394'},grid:{display:false}},y:{ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'RDV',color:'#7a8394'}},y1:{position:'right',ticks:{color:'#22d3ee'},grid:{display:false},title:{display:true,text:'Taux %',color:'#22d3ee'}}}}});
+    // TMC par agent
+    const sorted2=[...rows].sort((a,b)=>b.s.tmcSec-a.s.tmcSec);
+    destroyChart('ch-team-tmc');
+    const tmcEl=document.getElementById('ch-team-tmc');
+    if(tmcEl) new Chart(tmcEl,{type:'bar',data:{labels:sorted2.map(r=>r.ag.name.split(' ')[0]),datasets:[{label:'TMC (sec)',data:sorted2.map(r=>r.s.tmcSec),backgroundColor:sorted2.map(r=>r.s.tmcSec>=avgTmc?'rgba(249,115,22,.7)':'rgba(239,68,68,.5)'),borderRadius:4}]},options:{...CHART_OPTS,indexAxis:'y',scales:{x:{ticks:{color:'#7a8394',callback:v=>{const m=Math.floor(v/60),s=Math.floor(v%60);return`${m}:${String(s).padStart(2,'0')}`;},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a8394'},grid:{display:false}}}}});
+    // Taux RDV evolution (moy équipe par jour)
+    const allDates=[...new Set(rows.flatMap(r=>r.s.recs.map(x=>x.date)))].sort();
+    const teamRdvByDay=allDates.map(d=>{
+      let c=0,s=0;
+      rows.forEach(r=>{const rec=r.s.recs.find(x=>x.date===d);if(rec){c+=rec.calls||0;s+=rec.sales||0;}});
+      return c>0?parseFloat((s/c*100).toFixed(2)):null;
+    });
+    destroyChart('ch-team-rdv');
+    const rdvEl=document.getElementById('ch-team-rdv');
+    if(rdvEl) new Chart(rdvEl,{type:'line',data:{labels:allDates.map(d=>U.fmtDate(d)),datasets:[{label:'Taux RDV équipe %',data:teamRdvByDay,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.08)',fill:true,tension:.4,pointRadius:3,spanGaps:true}]},options:{...CHART_OPTS,scales:{x:{ticks:{color:'#7a8394',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#7a8394',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'}}}}});
+    // Heures par type
+    destroyChart('ch-team-h');
+    const hEl=document.getElementById('ch-team-h');
+    if(hEl) new Chart(hEl,{type:'bar',data:{labels:rows.map(r=>r.ag.name.split(' ')[0]),datasets:[{label:'Comm.',data:rows.map(r=>r.s.tC/3600),backgroundColor:'#4f7ef8',stack:'a'},{label:'Attente',data:rows.map(r=>r.s.tW/3600),backgroundColor:'#f59e0b',stack:'a'},{label:'Qual.',data:rows.map(r=>r.s.tQP/3600),backgroundColor:'#a78bfa',stack:'a'},{label:'Réunions',data:rows.map(r=>r.s.tM/3600),backgroundColor:'#10b981',stack:'a'}]},options:{...CHART_OPTS,scales:{x:{stacked:true,ticks:{color:'#7a8394'},grid:{display:false}},y:{stacked:true,ticks:{color:'#7a8394'},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Heures',color:'#7a8394'}}}}});
+    // Progression %
+    const sortedPct=[...rows].sort((a,b)=>b.s.pct-a.s.pct);
+    destroyChart('ch-team-p');
+    const pEl=document.getElementById('ch-team-p');
+    if(pEl) new Chart(pEl,{type:'bar',data:{labels:sortedPct.map(r=>r.ag.name.split(' ')[0]),datasets:[{label:'Progression %',data:sortedPct.map(r=>parseFloat(r.s.pct.toFixed(1))),backgroundColor:sortedPct.map(r=>r.s.pct>=90?'rgba(16,185,129,.7)':r.s.pct>=65?'rgba(245,158,11,.7)':'rgba(239,68,68,.6)'),borderRadius:4}]},options:{...CHART_OPTS,scales:{x:{ticks:{color:'#7a8394'},grid:{display:false}},y:{ticks:{color:'#7a8394',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'},max:100}}}});
   });
 },
 
-exportTeam() {
-  let csv='Agent;ID Vicidial;Communication;Attente;Qualification;Réunions;Total;Progression;Appels;RDV;Taux RDV\n';
-  DB.agents.forEach(ag=>{const s=U.calc(ag.id,DB.period);csv+=`${ag.name};${ag.viciId||ag.id};${U.hms(s.tC)};${U.hms(s.tW)};${U.hms(s.tQP)};${U.hms(s.tM)};${U.hms(s.tot)};${s.pct.toFixed(1)}%;${s.tCalls};${s.tSales};${s.rdvRate.toFixed(1)}%\n`;});
+exportTeam(){
+  let csv='Agent;ID Vicidial;Communication;Attente;Qualification;Réunions;Total;Progression;Appels;RDV;Taux RDV;TMC (sec)\n';
+  DB.agents.forEach(ag=>{const s=U.calc(ag.id,DB.period);csv+=`${ag.name};${ag.viciId||ag.id};${U.hms(s.tC)};${U.hms(s.tW)};${U.hms(s.tQP)};${U.hms(s.tM)};${U.hms(s.tot)};${s.pct.toFixed(1)}%;${s.tCalls};${s.tSales};${s.rdvRate.toFixed(1)}%;${s.tmcSec}\n`;});
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download=`Equipe_${DB.period}.csv`;a.click();
-  App.toast('Export CSV équipe téléchargé','s');
+  App.toast('Export équipe téléchargé','s');
 },
 
-// ── ADMIN DÉTAIL AGENT ───────────────────────────────────────────────
-'ad-detail'() {
+// ══ ADMIN DÉTAIL AGENT ══════════════════════════════════════════════
+'ad-detail'(){
   const opts=DB.agents.map(ag=>`<option value="${ag.id}">${ag.name} (${ag.viciId||ag.id})</option>`).join('');
   const def=DB.agents[0]?.id;
   const render=agId=>{
-    const ag=DB.agents.find(a=>a.id===agId); if(!ag) return '<div class="empty">Agent introuvable.</div>';
+    const ag=DB.agents.find(a=>a.id===agId);if(!ag) return '<div class="empty">Agent introuvable.</div>';
     const s=U.calc(agId,DB.period);
     const sorted=[...s.recs].sort((a,b)=>b.date.localeCompare(a.date));
     const rows=sorted.map(r=>{
       const qp=Math.min(r.qual,QUAL_CAP),ov=r.qual-qp,tot=r.comm+r.wait+qp+(r.mtg||0);
       const rate=r.calls>0?((r.sales/r.calls)*100).toFixed(1):'—';
-      return `<tr>
-        <td class="tn">${U.fmtDate(r.date)}</td>
-        <td style="color:var(--acc)">${U.hms(r.comm)}</td>
-        <td style="color:var(--amb)">${U.hms(r.wait)}</td>
-        <td style="color:var(--pur)">${U.hms(qp)}${ov>0?`<br><span style="color:var(--red);font-size:10px">+${U.hms(ov)} exclu</span>`:''}</td>
-        <td style="color:var(--grn)">${U.hms(r.mtg||0)}</td>
-        <td style="color:var(--cyn);font-weight:700">${U.hms(tot)}</td>
-        <td>${r.calls||0}</td><td style="color:var(--red)">${r.sales||0}</td><td>${rate!=='—'?rate+'%':'—'}</td>
-        <td><button class="btn btnd bsm" onclick="V.delRec('${agId}','${r.date}')">✕</button></td>
-      </tr>`;
+      const tmc=U.secToMMSS(U.tmc(r.comm,r.calls||0));
+      return `<tr><td class="tn">${U.fmtDate(r.date)}</td><td style="color:var(--acc)">${U.hms(r.comm)}</td><td style="color:var(--amb)">${U.hms(r.wait)}</td><td style="color:var(--pur)">${U.hms(qp)}${ov>0?`<br><span style="color:var(--red);font-size:9px">+${U.hms(ov)}</span>`:''}</td><td style="color:var(--grn)">${U.hms(r.mtg||0)}</td><td style="color:var(--cyn);font-weight:700">${U.hms(tot)}</td><td>${r.calls||0}</td><td style="color:var(--red)">${r.sales||0}</td><td>${rate!=='—'?rate+'%':'—'}</td><td style="color:var(--ora)">${tmc}</td><td><button class="btn btnd bsm" onclick="V.delRec('${agId}','${r.date}')">✕</button></td></tr>`;
     }).join('');
     return `
-      <div class="kg kg5">
+      <div class="kg kg6" style="margin-bottom:14px">
         <div class="kc kcomm"><div class="kl">Communication</div><div class="kv" style="color:var(--acc)">${U.hms(s.tC)}</div></div>
         <div class="kc kwait"><div class="kl">Attente</div><div class="kv" style="color:var(--amb)">${U.hms(s.tW)}</div></div>
         <div class="kc kqual"><div class="kl">Qualification</div><div class="kv" style="color:var(--pur)">${U.hms(s.tQP)}</div><div class="ks">Réel: ${U.hms(s.tQR)}</div></div>
         <div class="kc kmtg"><div class="kl">Réunions</div><div class="kv" style="color:var(--grn)">${U.hms(s.tM)}</div></div>
-        <div class="kc krdv"><div class="kl">RDV</div><div class="kv" style="color:var(--red)">${s.tSales}</div><div class="ks">${s.rdvRate.toFixed(1)}% · ${s.tCalls} appels</div></div>
+        <div class="kc krdv"><div class="kl">Taux RDV</div><div class="kv" style="color:var(--red)">${s.rdvRate.toFixed(1)}%</div><div class="ks">${s.tSales} RDV / ${s.tCalls} appels</div></div>
+        <div class="kc ktmc"><div class="kl">TMC moy.</div><div class="kv" style="color:var(--ora)">${U.secToMMSS(s.tmcSec)}</div><div class="ks">min:sec / appel</div></div>
       </div>
       <div class="card">
         <div class="ch">
           <div class="ct">Relevé journalier</div>
-          <div style="display:flex;gap:8px">
-            <span class="badge bc">${U.hms(s.tot)} · ${s.pct.toFixed(1)}%</span>
-            <button class="btn btng bsm" onclick="V.exportCSV('${agId}')">⬇ CSV</button>
-          </div>
+          <div style="display:flex;gap:8px"><span class="badge bc">${U.hms(s.tot)} · ${s.pct.toFixed(1)}%</span><button class="btn btng bsm" onclick="V.exportCSV('${agId}')">⬇ CSV</button></div>
         </div>
         <div class="tw"><table>
-          <thead><tr><th>Date</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual.</th><th style="color:var(--grn)">Réunions</th><th style="color:var(--cyn)">Total</th><th>Appels</th><th style="color:var(--red)">RDV</th><th>Taux</th><th></th></tr></thead>
-          <tbody>${rows||'<tr><td colspan="10" class="empty">Aucune donnée.</td></tr>'}</tbody>
+          <thead><tr><th>Date</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual.</th><th style="color:var(--grn)">Réunions</th><th style="color:var(--cyn)">Total</th><th>Appels</th><th style="color:var(--red)">RDV</th><th>Taux</th><th style="color:var(--ora)">TMC</th><th></th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="11" class="empty">Aucune donnée.</td></tr>'}</tbody>
         </table></div>
       </div>`;
   };
   document.getElementById('view').innerHTML=`
-    <div class="card" style="margin-bottom:16px">
-      <div class="ch"><div class="ct">Sélectionner un agent</div></div>
+    <div class="card" style="margin-bottom:14px">
       <select class="fc" id="det-sel" onchange="document.getElementById('det-body').innerHTML=V._rdr(this.value)">${opts}</select>
     </div>
     <div id="det-body">${render(def)}</div>`;
@@ -857,45 +954,105 @@ exportTeam() {
 },
 
 delRec(agId,date){
-  if(!confirm(`Supprimer la ligne du ${U.fmtDate(date)} pour cette période ?`)) return;
+  if(!confirm(`Supprimer la ligne du ${U.fmtDate(date)} ?`)) return;
   DB.records[agId]=(DB.records[agId]||[]).filter(r=>!(r.date===date&&r.period===DB.period));
   save(); App.toast('Ligne supprimée','i');
   const sel=document.getElementById('det-sel');
   if(sel) document.getElementById('det-body').innerHTML=V._rdr(agId);
 },
 
-// ── ADMIN IMPORT VICIDIAL ────────────────────────────────────────────
-'ad-import'() {
+// ══ ADMIN AGENTS EN ALERTE ══════════════════════════════════════════
+'ad-alerts'(){
+  const scored=DB.agents.map(ag=>{
+    const s=U.calc(ag.id,DB.period);
+    const sc=U.alertScore(ag.id,DB.period);
+    return {ag,s,sc};
+  }).filter(x=>x.sc>=30).sort((a,b)=>b.sc-a.sc);
+  const cfg=DB.periods[DB.period]||{};
+  const peers=DB.agents.map(a=>U.calc(a.id,DB.period));
+  const avgH=peers.reduce((a,p)=>a+p.h,0)/Math.max(1,peers.length);
+  const avgCalls=peers.reduce((a,p)=>a+p.tCalls,0)/Math.max(1,peers.length);
+  const avgTmc=peers.reduce((a,p)=>a+p.tmcSec,0)/Math.max(1,peers.length);
+  const avgRdv=peers.reduce((a,p)=>a+p.rdvRate,0)/Math.max(1,peers.length);
+  const avgQR=peers.reduce((a,p)=>a+p.qualRatio,0)/Math.max(1,peers.length);
   document.getElementById('view').innerHTML=`
-    <div class="itip">
-      <strong>Import Vicidial</strong> — Deux méthodes : <strong>1/ Fichier CSV/TXT</strong> (glisser-déposer) ou <strong>2/ Coller les données</strong> directement depuis le rapport Vicidial. Les agents sont créés automatiquement s'ils sont inconnus.
+    <div class="ibox" style="background:var(--redD);border-color:rgba(239,68,68,.2);color:var(--red)">
+      <strong>Algorithme de détection</strong> — Score 0-100 basé sur : heures travaillées, nb d'appels, TMC, taux RDV, % qualification. Score ≥ 45 = alerte rouge. Score 30-44 = alerte modérée.
+      <br><span style="color:var(--dim)">Moyennes équipe : ${U.hms(avgH*3600)}/mois · ${Math.round(avgCalls)} appels · TMC ${U.secToMMSS(Math.round(avgTmc))} · Taux RDV ${avgRdv.toFixed(1)}% · Qual. ${avgQR.toFixed(0)}%</span>
     </div>
+    ${!scored.length?`<div class="card"><div class="empty">✓ Aucun agent en situation d'alerte sur ${cfg.label||DB.period}</div></div>`:`
+    <div class="card">
+      <div class="ch"><div class="ct">Agents en alerte — ${cfg.label||DB.period}</div><span class="badge br">${scored.length} agent(s)</span></div>
+      ${scored.map(({ag,s,sc})=>{
+        const issues=[];
+        if(s.h<avgH*.75) issues.push(`<span class="badge br" style="font-size:9px">⏱ Peu d'heures ${U.hms(s.h*3600)} vs moy. ${U.hms(avgH*3600)}</span>`);
+        if(s.tCalls<avgCalls*.7) issues.push(`<span class="badge br" style="font-size:9px">📞 Peu d'appels ${s.tCalls} vs moy. ${Math.round(avgCalls)}</span>`);
+        if(s.tmcSec<avgTmc*.7) issues.push(`<span class="badge br" style="font-size:9px">⏱ TMC faible ${U.secToMMSS(s.tmcSec)} vs moy. ${U.secToMMSS(Math.round(avgTmc))}</span>`);
+        if(s.rdvRate<avgRdv*.7) issues.push(`<span class="badge br" style="font-size:9px">📋 RDV faible ${s.rdvRate.toFixed(1)}% vs moy. ${avgRdv.toFixed(1)}%</span>`);
+        if(s.qualRatio>avgQR*1.3) issues.push(`<span class="badge ba" style="font-size:9px">⚠ Qual. élevée ${s.qualRatio.toFixed(0)}% vs moy. ${avgQR.toFixed(0)}%</span>`);
+        return `<div class="agr alert-row-bg" style="flex-wrap:wrap;gap:10px">
+          <div class="agav" style="background:${ag.color||'#4f7ef8'}">${U.initials(ag.name)}</div>
+          <div class="agi"><div class="agn">${ag.name}</div><div class="agid">${ag.viciId||ag.id}</div></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;flex:2">${issues.join('')}</div>
+          <div class="alert-score ${sc<65?'medium':''}" style="font-size:13px;padding:6px 14px">${sc}/100</div>
+          <div style="text-align:right;min-width:90px;font-size:11px">
+            <div style="color:var(--cyn)">${U.hms(s.tot)} · ${s.pct.toFixed(1)}%</div>
+            <div style="color:var(--ora)">TMC ${U.secToMMSS(s.tmcSec)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`}
+    <div class="card">
+      <div class="ch"><div class="ct">Radar de performance équipe</div></div>
+      <div style="height:300px"><canvas id="ch-radar"></canvas></div>
+    </div>`;
+  requestAnimationFrame(()=>{
+    destroyChart('ch-radar');
+    const rc=document.getElementById('ch-radar');
+    if(!rc) return;
+    const top=DB.agents.slice(0,6);
+    new Chart(rc,{type:'radar',data:{labels:['Heures','Appels','TMC','Taux RDV','Qual. OK'],datasets:top.map((ag,i)=>{
+      const s=U.calc(ag.id,DB.period);
+      return {label:ag.name.split(' ')[0],data:[
+        Math.min(100,s.h/Math.max(1,avgH)*100),
+        Math.min(100,s.tCalls/Math.max(1,avgCalls)*100),
+        Math.min(100,s.tmcSec/Math.max(1,avgTmc)*100),
+        Math.min(100,s.rdvRate/Math.max(1,avgRdv)*100),
+        Math.min(100,Math.max(0,100-(s.qualRatio/Math.max(1,avgQR)-1)*50)),
+      ],borderColor:ag.color||COLORS[i],backgroundColor:(ag.color||COLORS[i])+'28',pointRadius:4,borderWidth:2};
+    })},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a8394',font:{size:10}}}},scales:{r:{ticks:{color:'#7a8394',font:{size:9},backdropColor:'transparent'},grid:{color:'rgba(255,255,255,.08)'},pointLabels:{color:'#7a8394',font:{size:11}},min:0,max:100}}}});
+  });
+},
+
+// ══ ADMIN IMPORT ════════════════════════════════════════════════════
+'ad-import'(){
+  document.getElementById('view').innerHTML=`
+    <div class="itip"><strong>Import Vicidial</strong> — Fichier CSV/TXT ou collage direct. Les agents sont auto-créés depuis la base Vicidial. La gestion des profils (MDP, rémunération) s'effectue dans "Gestion agents".</div>
     <div class="ifmt">Colonnes lues (export Vicidial standard) :
   Col 0 : Nom agent   Col 1 : ID Vicidial   Col 4 : Date (YYYY-MM-DD)
   Col 5 : Nb appels   Col 9 : Attente       Col 11 : Communication
   Col 13 : Qualification (DISPO)            Dernière col : SALE (RDV)</div>
     <div class="g2">
       <div class="card">
-        <div class="ch"><div class="ct">Méthode 1 — Fichier CSV/TXT</div><span class="badge bc">${DB.periods[DB.period]?.label}</span></div>
+        <div class="ch"><div class="ct">Fichier CSV/TXT</div><span class="badge bc">${DB.periods[DB.period]?.label}</span></div>
         <div class="fdrop" id="fdrop">
           <input type="file" accept=".csv,.txt" onchange="V.handleFile(this.files[0])">
-          <div style="font-size:40px;margin-bottom:12px">📂</div>
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Glisser ou cliquer pour importer</div>
-          <div style="font-size:12px;color:var(--dim)">Export CSV Vicidial — AGENT_PERFORMACE_DETAIL*.csv</div>
+          <div style="font-size:36px;margin-bottom:10px">📂</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:5px">Glisser ou cliquer</div>
+          <div style="font-size:12px;color:var(--dim)">AGENT_PERFORMACE_DETAIL*.csv</div>
         </div>
-        <div id="imp-st" style="margin-top:12px;font-size:12px;color:var(--dim)"></div>
+        <div id="imp-st" style="margin-top:10px;font-size:12px;color:var(--dim)"></div>
       </div>
       <div class="card">
-        <div class="ch"><div class="ct">Méthode 2 — Coller les données</div></div>
+        <div class="ch"><div class="ct">Coller les données</div></div>
         <textarea class="fc" id="imp-raw" placeholder="Collez ici les lignes du rapport Vicidial..."></textarea>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="btn btng bsm" onclick="document.getElementById('imp-raw').value=''">Effacer</button>
-          <button class="btn btnp bsm" onclick="V.doImportText()">Analyser & Importer ↗</button>
+          <button class="btn btnp bsm" onclick="V.doImportText()">Analyser & Importer</button>
         </div>
       </div>
     </div>
     <div id="imp-res"></div>`;
-
   const drop=document.getElementById('fdrop');
   if(drop){
     drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
@@ -904,125 +1061,96 @@ delRec(agId,date){
   }
 },
 
-handleFile(file) {
+handleFile(file){
   if(!file) return;
   document.getElementById('imp-st').textContent=`Lecture de ${file.name}…`;
   const reader=new FileReader();
-  reader.onload=e=>{ V._processImport(e.target.result, file.name); };
+  reader.onload=e=>V._processImport(e.target.result,file.name);
   reader.readAsText(file,'UTF-8');
 },
 
-doImportText() {
+doImportText(){
   const raw=document.getElementById('imp-raw')?.value||'';
-  if(!raw.trim()) return App.toast('Aucune donnée à importer','e');
+  if(!raw.trim()) return App.toast('Aucune donnée','e');
   V._processImport(raw,'saisie manuelle');
 },
 
-_processImport(text, src) {
+_processImport(text,src){
   const entries=U.parseVicidial(text);
-  if(!entries.length){ App.toast('Aucune ligne détectée — vérifiez le format','e'); return; }
+  if(!entries.length){App.toast('Aucune ligne détectée','e');return;}
   let added=0,updated=0;
+  // Trouver la date la plus récente pour le banner
+  let latestDate='';
   entries.forEach(e=>{
-    const {agId,agName,date,comm,wait,qual,calls,sales}=e;
-    if(!DB.agents.find(a=>a.id===agId||a.viciId===agId)){
-      DB.agents.push({id:agId,viciId:agId,name:agName,pw:'0000',color:COLORS[DB.agents.length%COLORS.length]});
+    const{agId,agName,date,comm,wait,qual,calls,sales}=e;
+    if(date>latestDate) latestDate=date;
+    // Auto-register: cherche par ID Vicidial ou ID interne
+    let ag=DB.agents.find(a=>a.viciId===agId||a.id===agId);
+    if(!ag){
+      ag={id:agId,viciId:agId,name:agName,pw:'0000',color:COLORS[DB.agents.length%COLORS.length],salBase:0,salType:'AE',hpd:6};
+      DB.agents.push(ag);
     }
-    if(!DB.records[agId]) DB.records[agId]=[];
-    const ex=DB.records[agId].find(r=>r.date===date&&r.period===DB.period);
+    if(!DB.records[ag.id]) DB.records[ag.id]=[];
+    const ex=DB.records[ag.id].find(r=>r.date===date&&r.period===DB.period);
     const entry={period:DB.period,date,comm,wait,qual,calls,sales,mtg:ex?.mtg||0};
-    if(ex){Object.assign(ex,entry);updated++;}else{DB.records[agId].push(entry);added++;}
+    if(ex){Object.assign(ex,entry);updated++;}else{DB.records[ag.id].push(entry);added++;}
   });
+  // Mise à jour banner
+  DB.lastImport={date:latestDate||U.today(),period:DB.period,count:added+updated,agents:new Set(entries.map(e=>e.agId)).size};
   save();
-  const preview=entries.slice(0,15);
-  document.getElementById('imp-st') && (document.getElementById('imp-st').textContent=`Source : "${src}"`);
+  U.updateBanner();
+  const preview=entries.slice(0,12);
+  const dst=document.getElementById('imp-st');
+  if(dst) dst.textContent=`Source : "${src}"`;
   document.getElementById('imp-res').innerHTML=`<div class="card">
-    <div class="ch">
-      <div class="ct">Résultat de l'import</div>
-      <div style="display:flex;gap:8px">
-        <span class="badge bg">✓ ${added} nouvelles</span>
-        <span class="badge bb">↺ ${updated} mises à jour</span>
-        <span class="badge bp">${new Set(entries.map(e=>e.agId)).size} agents</span>
-      </div>
-    </div>
-    <div class="tw"><table>
-      <thead><tr><th>Agent</th><th>Date</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual. (plafonnée)</th><th>Appels</th><th style="color:var(--red)">RDV</th></tr></thead>
-      <tbody>
-        ${preview.map(p=>`<tr>
-          <td class="tn">${p.agName}</td>
-          <td class="tn">${U.fmtDate(p.date)}</td>
-          <td style="color:var(--acc)">${U.hms(p.comm)}</td>
-          <td style="color:var(--amb)">${U.hms(p.wait)}</td>
-          <td style="color:var(--pur)">${U.hms(Math.min(p.qual,QUAL_CAP))}${p.qual>QUAL_CAP?`<span style="color:var(--red);font-size:10px"> +${U.hms(p.qual-QUAL_CAP)}</span>`:''}</td>
-          <td>${p.calls}</td>
-          <td style="color:var(--red)">${p.sales}</td>
-        </tr>`).join('')}
-        ${entries.length>15?`<tr><td colspan="7" style="text-align:center;color:var(--dim);padding:10px">… et ${entries.length-15} autres lignes</td></tr>`:''}
-      </tbody>
-    </table></div>
+    <div class="ch"><div class="ct">Résultat</div><div style="display:flex;gap:8px"><span class="badge bg">✓ ${added} nouvelles</span><span class="badge bb">↺ ${updated} mises à jour</span><span class="badge bp">${new Set(entries.map(e=>e.agId)).size} agents</span></div></div>
+    <div class="tw"><table><thead><tr><th>Agent</th><th>Date</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual. (cap)</th><th>Appels</th><th style="color:var(--red)">RDV</th><th style="color:var(--ora)">TMC</th></tr></thead><tbody>
+    ${preview.map(p=>`<tr><td class="tn">${p.agName}</td><td class="tn">${U.fmtDate(p.date)}</td><td style="color:var(--acc)">${U.hms(p.comm)}</td><td style="color:var(--amb)">${U.hms(p.wait)}</td><td style="color:var(--pur)">${U.hms(Math.min(p.qual,QUAL_CAP))}${p.qual>QUAL_CAP?`<span style="color:var(--red);font-size:9px"> +${U.hms(p.qual-QUAL_CAP)}</span>`:''}</td><td>${p.calls}</td><td style="color:var(--red)">${p.sales}</td><td style="color:var(--ora)">${U.secToMMSS(U.tmc(p.comm,p.calls))}</td></tr>`).join('')}
+    ${entries.length>12?`<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:8px">… et ${entries.length-12} autres lignes</td></tr>`:''}
+    </tbody></table></div>
   </div>`;
-  App.toast(`${added+updated} lignes importées depuis ${src}`,'s');
+  App.toast(`${added+updated} lignes importées`,'s');
 },
 
-// ── ADMIN RÉUNIONS ───────────────────────────────────────────────────
-'ad-mtg'() {
+// ══ ADMIN RÉUNIONS ══════════════════════════════════════════════════
+'ad-mtg'(){
   const logs=DB.mtg_log.filter(m=>m.period===DB.period).sort((a,b)=>b.date.localeCompare(a.date));
-  const tp={coaching:'Coaching',reunion:'Réunion équipe',decorticage:'Décorticage appels',formation:'Formation'};
-  const checkList=DB.agents.map(ag=>`
-    <div class="agci">
-      <input type="checkbox" id="chk-${ag.id}" value="${ag.id}">
-      <div class="av" style="background:${ag.color||'#4f7ef8'};width:28px;height:28px;font-size:10px">${U.initials(ag.name)}</div>
-      <label for="chk-${ag.id}">${ag.name}</label>
-    </div>`).join('');
+  const tp={coaching:'Coaching',reunion:'Réunion équipe',decorticage:'Décorticage',formation:'Formation'};
+  const cl=DB.agents.map(ag=>`<div class="agci"><input type="checkbox" id="chk-${ag.id}" value="${ag.id}"><div class="av" style="background:${ag.color||'#4f7ef8'};width:26px;height:26px;font-size:10px">${U.initials(ag.name)}</div><label for="chk-${ag.id}">${ag.name}</label></div>`).join('');
   document.getElementById('view').innerHTML=`
     <div class="g2">
       <div class="card">
-        <div class="ct" style="margin-bottom:20px">Saisir un temps</div>
-        <div class="fg">
-          <label class="fl">Agents (sélection multiple)</label>
-          <div class="agcl" id="agcl">${checkList}</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btng bsm" onclick="document.querySelectorAll('#agcl input').forEach(c=>c.checked=true)">Tout sélectionner</button>
-            <button class="btn btng bsm" onclick="document.querySelectorAll('#agcl input').forEach(c=>c.checked=false)">Tout désélectionner</button>
+        <div class="ct" style="margin-bottom:18px">Saisir un temps</div>
+        <div class="fg"><label class="fl">Agents (sélection multiple)</label>
+          <div class="agcl" id="agcl">${cl}</div>
+          <div style="display:flex;gap:8px;margin-top:7px">
+            <button class="btn btng bsm" onclick="document.querySelectorAll('#agcl input').forEach(c=>c.checked=true)">Tout</button>
+            <button class="btn btng bsm" onclick="document.querySelectorAll('#agcl input').forEach(c=>c.checked=false)">Aucun</button>
           </div>
         </div>
         <div class="fg"><label class="fl">Date</label><input type="date" class="fc" id="m-dt" value="${U.today()}"></div>
         <div class="fg"><label class="fl">Durée (minutes)</label><input type="number" class="fc" id="m-dur" placeholder="Ex : 30" min="1" max="480"></div>
-        <div class="fg"><label class="fl">Type</label>
-          <select class="fc" id="m-type">
-            <option value="coaching">Coaching</option>
-            <option value="reunion">Réunion équipe</option>
-            <option value="decorticage">Décorticage appels</option>
-            <option value="formation">Formation</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Note (optionnel)</label><input type="text" class="fc" id="m-note" placeholder="Ex : Débriefing résultats semaine"></div>
-        <button class="btn btnp bfw" onclick="V.saveMtg()">Enregistrer le temps ↗</button>
+        <div class="fg"><label class="fl">Type</label><select class="fc" id="m-type"><option value="coaching">Coaching</option><option value="reunion">Réunion équipe</option><option value="decorticage">Décorticage appels</option><option value="formation">Formation</option></select></div>
+        <div class="fg"><label class="fl">Note (optionnel)</label><input type="text" class="fc" id="m-note" placeholder="Ex : Débriefing résultats"></div>
+        <button class="btn btnp bfw" onclick="V.saveMtg()">Enregistrer le temps</button>
       </div>
       <div class="card">
         <div class="ch"><div class="ct">Historique — ${DB.periods[DB.period]?.label}</div><span class="badge bg">${logs.length} entrées</span></div>
-        <div style="max-height:560px;overflow-y:auto">
+        <div style="max-height:520px;overflow-y:auto">
           ${!logs.length?'<div class="empty">Aucune réunion ce mois.</div>':logs.map(m=>{
             const ag=DB.agents.find(a=>a.id===m.agId);
-            return `<div class="mtgi">
-              <div class="av" style="background:${ag?.color||'#4f7ef8'};width:28px;height:28px;font-size:10px">${U.initials(ag?.name||m.agId)}</div>
-              <span style="flex:1;font-weight:600;font-size:12px">${ag?.name||m.agId}</span>
-              <span class="badge bp" style="font-size:9px">${tp[m.type]||m.type}</span>
-              <span style="color:var(--dim);font-family:'JetBrains Mono';font-size:11px">${U.fmtDate(m.date)}</span>
-              <span style="color:var(--grn);font-family:'JetBrains Mono';font-weight:700">+${m.durMin}min</span>
-              ${m.note?`<span style="font-size:10px;color:var(--mu)">${m.note}</span>`:''}
-              <button class="btn btnd bsm" style="padding:3px 8px;font-size:11px" onclick="V.delMtg('${m.agId}','${m.date}',${m.durMin},'${m.type}')">✕</button>
-            </div>`;}).join('')}
+            return `<div class="mtgi"><div class="av" style="background:${ag?.color||'#4f7ef8'};width:26px;height:26px;font-size:10px">${U.initials(ag?.name||m.agId)}</div><span style="flex:1;font-weight:600;font-size:12px">${ag?.name||m.agId}</span><span class="badge bp" style="font-size:9px">${tp[m.type]||m.type}</span><span style="color:var(--dim);font-family:'JetBrains Mono';font-size:11px">${U.fmtDate(m.date)}</span><span style="color:var(--grn);font-family:'JetBrains Mono';font-weight:700">+${m.durMin}min</span>${m.note?`<span style="font-size:10px;color:var(--mu)">${m.note}</span>`:''}<button class="btn btnd bsm" style="padding:2px 7px;font-size:11px" onclick="V.delMtg('${m.agId}','${m.date}',${m.durMin},'${m.type}')">✕</button></div>`;
+          }).join('')}
         </div>
       </div>
     </div>`;
 },
 
-saveMtg() {
+saveMtg(){
   const sel=[...document.querySelectorAll('#agcl input:checked')].map(c=>c.value);
   const date=document.getElementById('m-dt').value;
   const dur=parseInt(document.getElementById('m-dur').value);
-  const type=document.getElementById('m-type').value;
-  const note=document.getElementById('m-note').value;
+  const type=document.getElementById('m-type').value,note=document.getElementById('m-note').value;
   if(!sel.length) return App.toast('Sélectionnez au moins un agent','e');
   if(!date||isNaN(dur)||dur<=0) return App.toast('Date et durée requises','e');
   sel.forEach(agId=>{
@@ -1044,80 +1172,54 @@ delMtg(agId,date,dur,type){
   save(); App.toast('Entrée supprimée','i'); R.go('ad-mtg');
 },
 
-// ── ADMIN GESTION AGENTS ─────────────────────────────────────────────
-'ad-agents'() {
+// ══ ADMIN GESTION AGENTS ════════════════════════════════════════════
+'ad-agents'(){
+  // Trié par heures travaillées (desc)
+  const sorted=[...DB.agents].map(ag=>({ag,s:U.calc(ag.id,DB.period)})).sort((a,b)=>b.s.h-a.s.h);
   document.getElementById('view').innerHTML=`
+    <div class="ibox">Les agents sont créés automatiquement à l'import Vicidial. Ici vous gérez les profils : mot de passe, rémunération, accord horaire. Triés par heures travaillées ce mois.</div>
     <div class="card">
-      <div class="ch">
-        <div><div class="ct">Agents (${DB.agents.length})</div></div>
-        <button class="btn btnp bsm" onclick="V.openAdd()">+ Ajouter un agent</button>
-      </div>
+      <div class="ch"><div class="ct">Agents (${DB.agents.length})</div></div>
       <div class="tw"><table>
-        <thead><tr><th>Nom</th><th>ID Interne</th><th>ID Vicidial</th><th>MDP</th><th>Couleur</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Nom</th><th>ID Vicidial</th><th>MDP</th><th>Rémunération (MAD)</th><th>Type contrat</th><th>Accord H/jour</th><th>Heures mois</th><th>Actions</th></tr></thead>
         <tbody>
-          ${DB.agents.map(ag=>`<tr>
-            <td><div style="display:flex;align-items:center;gap:10px">
-              <div class="agav" style="background:${ag.color||'#4f7ef8'};width:32px;height:32px;font-size:11px">${U.initials(ag.name)}</div>
-              <span class="tb">${ag.name}</span>
-            </div></td>
-            <td style="font-family:'JetBrains Mono';font-size:12px">${ag.id}</td>
-            <td style="font-family:'JetBrains Mono';font-size:12px;color:var(--dim)">${ag.viciId||'—'}</td>
+          ${sorted.map(({ag,s})=>`<tr>
+            <td><div style="display:flex;align-items:center;gap:8px"><div class="agav" style="background:${ag.color||'#4f7ef8'};width:30px;height:30px;font-size:10px">${U.initials(ag.name)}</div><span class="tb">${ag.name}</span></div></td>
+            <td style="font-family:'JetBrains Mono';font-size:11px;color:var(--dim)">${ag.viciId||ag.id}</td>
             <td><span class="badge bb">${ag.pw}</span></td>
-            <td><div style="width:20px;height:20px;border-radius:50%;background:${ag.color||'#4f7ef8'}"></div></td>
-            <td><div style="display:flex;gap:6px">
-              <button class="btn btng bsm" onclick="V.openEdit('${ag.id}')">Modifier</button>
-              <button class="btn btnd bsm" onclick="V.delAgent('${ag.id}')">Supprimer</button>
-            </div></td>
+            <td style="color:var(--grn);font-family:'JetBrains Mono'">${ag.salBase?ag.salBase.toLocaleString('fr-FR')+' MAD':'—'}</td>
+            <td><span class="badge ${ag.salType==='SALARIE'?'bc':'bp'}">${ag.salType||'AE'}</span></td>
+            <td style="text-align:center">${ag.hpd||6}h</td>
+            <td style="color:var(--cyn);font-family:'JetBrains Mono'">${U.hms(s.tot)}</td>
+            <td><button class="btn btng bsm" onclick="V.openEdit('${ag.id}')">Modifier</button></td>
           </tr>`).join('')}
         </tbody>
       </table></div>
     </div>`;
 },
 
-openAdd(){
-  const o=document.createElement('div');o.className='mo-ov';
-  o.innerHTML=`<div class="mo">
-    <div class="mot">Nouvel agent</div>
-    <div class="mos">Définissez l'identifiant interne et l'ID Vicidial (peut être identique).</div>
-    <div class="fg"><label class="fl">Nom complet</label><input class="fc" id="ma-n" placeholder="Prénom Nom"></div>
-    <div class="g2">
-      <div class="fg"><label class="fl">ID Interne (login)</label><input class="fc" id="ma-i" placeholder="Ex: FATIMA_01"></div>
-      <div class="fg"><label class="fl">ID Vicidial</label><input class="fc" id="ma-v" placeholder="Ex: 06980713"></div>
-    </div>
-    <div class="fg"><label class="fl">Mot de passe</label><input class="fc" id="ma-p" placeholder="Ex: 0001"></div>
-    <div class="fg"><label class="fl">Couleur</label>
-      <select class="fc" id="ma-c">${COLORS.map((c,i)=>`<option value="${c}">${['Bleu','Vert','Orange','Violet','Cyan','Rouge','Orange vif','Rose','Turquoise','Lime','Indigo','Teal'][i]||c}</option>`).join('')}</select>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn btng" style="flex:1" onclick="this.closest('.mo-ov').remove()">Annuler</button>
-      <button class="btn btnp" style="flex:1" onclick="V.confirmAdd()">Créer l'agent</button>
-    </div>
-  </div>`;
-  document.body.appendChild(o);
-},
-
-confirmAdd(){
-  const n=document.getElementById('ma-n')?.value.trim();
-  const id=document.getElementById('ma-i')?.value.trim();
-  const vici=document.getElementById('ma-v')?.value.trim()||id;
-  const pw=document.getElementById('ma-p')?.value.trim();
-  const color=document.getElementById('ma-c')?.value;
-  if(!n||!id||!pw) return App.toast('Champs requis manquants','e');
-  if(DB.agents.find(a=>a.id===id)) return App.toast('Cet ID existe déjà','e');
-  DB.agents.push({id,viciId:vici,name:n,pw,color});
-  save(); document.querySelector('.mo-ov')?.remove(); App.toast(`Agent ${n} créé`,'s'); R.go('ad-agents');
-},
-
 openEdit(id){
-  const ag=DB.agents.find(a=>a.id===id); if(!ag) return;
+  const ag=DB.agents.find(a=>a.id===id);if(!ag) return;
+  const s=U.calc(id,DB.period);
+  const salEarned=ag.salBase&&s.pct>0?Math.round(ag.salBase*(s.pct/100)):0;
   const o=document.createElement('div');o.className='mo-ov';
   o.innerHTML=`<div class="mo">
-    <div class="mot">Modifier l'agent</div>
-    <div class="mos">ID interne : ${ag.id}</div>
-    <div class="fg"><label class="fl">Nom complet</label><input class="fc" id="me-n" value="${ag.name}"></div>
-    <div class="fg"><label class="fl">ID Vicidial</label><input class="fc" id="me-v" value="${ag.viciId||ag.id}"></div>
-    <div class="fg"><label class="fl">Mot de passe</label><input class="fc" id="me-p" value="${ag.pw}"></div>
-    <div style="display:flex;gap:10px;margin-top:8px">
+    <div class="mot">${ag.name}</div>
+    <div class="mos">ID Vicidial : ${ag.viciId||ag.id} · ${U.hms(s.tot)} ce mois (${s.pct.toFixed(1)}%)</div>
+    ${salEarned?`<div style="background:var(--grnD);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--grn);margin-bottom:14px">Rémunération estimée ce mois : <strong>${salEarned.toLocaleString('fr-FR')} MAD</strong></div>`:''}
+    <div class="g2">
+      <div class="fg"><label class="fl">Mot de passe</label><input class="fc" id="me-pw" value="${ag.pw}"></div>
+      <div class="fg"><label class="fl">Couleur avatar</label><select class="fc" id="me-col">${COLORS.map((c,i)=>`<option value="${c}" ${ag.color===c?'selected':''} style="background:${c}">${['Bleu','Vert','Orange','Violet','Cyan','Rouge','Orange vif','Rose','Turquoise','Lime','Indigo','Teal'][i]||c}</option>`).join('')}</select></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label class="fl">Rémunération base (MAD)</label><input type="number" class="fc" id="me-sal" value="${ag.salBase||''}" placeholder="Ex: 5000"></div>
+      <div class="fg"><label class="fl">Type contrat</label><select class="fc" id="me-type"><option value="AE" ${ag.salType!=='SALARIE'?'selected':''}>Auto-entrepreneur</option><option value="SALARIE" ${ag.salType==='SALARIE'?'selected':''}>Salarié</option></select></div>
+    </div>
+    <div class="fg"><label class="fl">Accord horaire (h/jour)</label>
+      <select class="fc" id="me-hpd">${HPD_OPTIONS.map(h=>`<option value="${h}" ${(ag.hpd||6)===h?'selected':''}>${h}h / jour (objectif mensuel : ${h*(DB.periods[DB.period]?.days||22)}h)</option>`).join('')}</select>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;gap:10px">
       <button class="btn btng" style="flex:1" onclick="this.closest('.mo-ov').remove()">Annuler</button>
       <button class="btn btnp" style="flex:1" onclick="V.confirmEdit('${id}')">Enregistrer</button>
     </div>
@@ -1126,57 +1228,35 @@ openEdit(id){
 },
 
 confirmEdit(id){
-  const ag=DB.agents.find(a=>a.id===id); if(!ag) return;
-  ag.name=document.getElementById('me-n')?.value.trim()||ag.name;
-  ag.viciId=document.getElementById('me-v')?.value.trim()||ag.viciId||ag.id;
-  ag.pw=document.getElementById('me-p')?.value.trim()||ag.pw;
-  save(); document.querySelector('.mo-ov')?.remove(); App.toast('Agent mis à jour','s'); R.go('ad-agents');
+  const ag=DB.agents.find(a=>a.id===id);if(!ag) return;
+  ag.pw=document.getElementById('me-pw')?.value.trim()||ag.pw;
+  ag.color=document.getElementById('me-col')?.value||ag.color;
+  ag.salBase=parseFloat(document.getElementById('me-sal')?.value)||ag.salBase||0;
+  ag.salType=document.getElementById('me-type')?.value||ag.salType||'AE';
+  ag.hpd=parseInt(document.getElementById('me-hpd')?.value)||ag.hpd||6;
+  // Recalcule objectif si hpd changé
+  save(); document.querySelector('.mo-ov')?.remove();
+  App.toast('Profil agent mis à jour','s'); R.go('ad-agents');
 },
 
-delAgent(id){
-  const ag=DB.agents.find(a=>a.id===id); if(!ag) return;
-  if(!confirm(`Supprimer ${ag.name} et toutes ses données ?`)) return;
-  DB.agents=DB.agents.filter(a=>a.id!==id);
-  delete DB.records[id];
-  DB.mtg_log=DB.mtg_log.filter(m=>m.agId!==id);
-  save(); App.toast('Agent supprimé','i'); R.go('ad-agents');
-},
-
-// ── ADMIN PÉRIODES & OBJECTIFS ───────────────────────────────────────
-'ad-periodes'() {
+// ══ ADMIN PÉRIODES ══════════════════════════════════════════════════
+'ad-periodes'(){
   const renderTable=()=>{
-    const rows=Object.entries(DB.periods).map(([k,p])=>`
-      <tr>
-        <td class="tb">${p.label}</td>
-        <td style="font-family:'JetBrains Mono'">${k}</td>
-        <td style="color:var(--cyn);font-weight:700">${p.goalH}h</td>
-        <td>${p.days} jours</td>
-        <td>${p.hpd||6}h/jour</td>
-        <td><div style="display:flex;gap:6px">
-          <button class="btn btng bsm" onclick="V.openEditPer('${k}')">Modifier</button>
-          <button class="btn btnd bsm" onclick="V.delPer('${k}')">Supprimer</button>
-        </div></td>
-      </tr>`).join('');
-    const agentProgress=Object.entries(DB.periods).map(([k,p])=>`
-      <tr>
-        <td class="tb">${p.label}</td>
-        ${DB.agents.map(ag=>{const s=U.calc(ag.id,k);return`<td><span class="badge ${U.pbadge(s.pct)}">${s.pct.toFixed(0)}%</span></td>`;}).join('')}
-      </tr>`).join('');
-    return `
-      <div class="card">
-        <div class="ch"><div class="ct">Périodes configurées</div><button class="btn btnp bsm" onclick="V.openAddPer()">+ Nouvelle période</button></div>
-        <div class="tw"><table>
-          <thead><tr><th>Période</th><th>Code</th><th>Objectif</th><th>Jours</th><th>H/jour</th><th>Actions</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>
-      </div>
-      <div class="card">
-        <div class="ch"><div class="ct">Avancement par période & agent</div></div>
-        <div class="tw"><table>
-          <thead><tr><th>Période</th>${DB.agents.map(ag=>`<th style="color:${ag.color||'var(--acc)'}">${ag.name.split(' ')[0]}</th>`).join('')}</tr></thead>
-          <tbody>${agentProgress}</tbody>
-        </table></div>
-      </div>`;
+    const rows=Object.entries(DB.periods).map(([k,p])=>`<tr>
+      <td class="tb">${p.label}</td>
+      <td style="font-family:'JetBrains Mono'">${k}</td>
+      <td style="color:var(--cyn);font-weight:700">${p.goalH}h</td>
+      <td>${p.days} jours</td>
+      <td>${p.hpd||6}h/jour</td>
+      <td><div style="display:flex;gap:6px"><button class="btn btng bsm" onclick="V.openEditPer('${k}')">Modifier</button><button class="btn btnd bsm" onclick="V.delPer('${k}')">Supprimer</button></div></td>
+    </tr>`).join('');
+    const agProg=Object.entries(DB.periods).map(([k,p])=>`<tr><td class="tb">${p.label}</td>${DB.agents.map(ag=>{const s=U.calc(ag.id,k);return`<td><span class="badge ${U.pbadge(s.pct)}">${s.pct.toFixed(0)}%</span></td>`;}).join('')}</tr>`).join('');
+    return `<div class="card"><div class="ch"><div class="ct">Périodes</div><button class="btn btnp bsm" onclick="V.openAddPer()">+ Ajouter</button></div>
+      <div class="tw"><table><thead><tr><th>Période</th><th>Code</th><th>Objectif</th><th>Jours</th><th>H/jour</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>
+    <div class="card"><div class="ch"><div class="ct">Avancement par période</div></div>
+      <div class="tw"><table><thead><tr><th>Période</th>${DB.agents.map(ag=>`<th style="color:${ag.color||'var(--acc)'}">${ag.name.split(' ')[0]}</th>`).join('')}</tr></thead><tbody>${agProg}</tbody></table></div>
+    </div>`;
   };
   document.getElementById('view').innerHTML=`<div id="per-body">${renderTable()}</div>`;
   V._renderPer=renderTable;
@@ -1185,29 +1265,17 @@ delAgent(id){
 openAddPer(){
   const o=document.createElement('div');o.className='mo-ov';
   o.innerHTML=`<div class="mo"><div class="mot">Nouvelle période</div>
-    <div class="g2">
-      <div class="fg"><label class="fl">Code (ex: 2026-07)</label><input class="fc" id="pp-k" placeholder="2026-07"></div>
-      <div class="fg"><label class="fl">Label</label><input class="fc" id="pp-l" placeholder="Juillet 2026"></div>
-    </div>
-    <div class="g2">
-      <div class="fg"><label class="fl">Objectif heures</label><input type="number" class="fc" id="pp-h" placeholder="132"></div>
-      <div class="fg"><label class="fl">Jours ouvrés</label><input type="number" class="fc" id="pp-d" placeholder="22"></div>
-    </div>
-    <div class="fg"><label class="fl">Heures par jour (accord)</label><input type="number" class="fc" id="pp-hd" placeholder="6" value="6"></div>
-    <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn btng" style="flex:1" onclick="this.closest('.mo-ov').remove()">Annuler</button>
-      <button class="btn btnp" style="flex:1" onclick="V.confirmAddPer()">Créer</button>
-    </div>
+    <div class="g2"><div class="fg"><label class="fl">Code</label><input class="fc" id="pp-k" placeholder="2026-07"></div><div class="fg"><label class="fl">Label</label><input class="fc" id="pp-l" placeholder="Juillet 2026"></div></div>
+    <div class="g2"><div class="fg"><label class="fl">Objectif heures</label><input type="number" class="fc" id="pp-h" placeholder="132"></div><div class="fg"><label class="fl">Jours ouvrés</label><input type="number" class="fc" id="pp-d" placeholder="22"></div></div>
+    <div class="fg"><label class="fl">H/jour accord</label><input type="number" class="fc" id="pp-hd" value="6" placeholder="6"></div>
+    <div style="display:flex;gap:10px;margin-top:8px"><button class="btn btng" style="flex:1" onclick="this.closest('.mo-ov').remove()">Annuler</button><button class="btn btnp" style="flex:1" onclick="V.confirmAddPer()">Créer</button></div>
   </div>`;
   document.body.appendChild(o);
 },
 
 confirmAddPer(){
-  const k=document.getElementById('pp-k')?.value.trim();
-  const l=document.getElementById('pp-l')?.value.trim();
-  const h=parseFloat(document.getElementById('pp-h')?.value);
-  const d=parseInt(document.getElementById('pp-d')?.value);
-  const hd=parseFloat(document.getElementById('pp-hd')?.value)||6;
+  const k=document.getElementById('pp-k')?.value.trim(),l=document.getElementById('pp-l')?.value.trim();
+  const h=parseFloat(document.getElementById('pp-h')?.value),d=parseInt(document.getElementById('pp-d')?.value),hd=parseFloat(document.getElementById('pp-hd')?.value)||6;
   if(!k||!l||!h||!d) return App.toast('Tous les champs requis','e');
   if(DB.periods[k]) return App.toast('Ce code existe déjà','e');
   DB.periods[k]={label:l,goalH:h,days:d,hpd:hd};
@@ -1219,25 +1287,19 @@ confirmAddPer(){
 },
 
 openEditPer(k){
-  const p=DB.periods[k]; if(!p) return;
+  const p=DB.periods[k];if(!p) return;
   const o=document.createElement('div');o.className='mo-ov';
-  o.innerHTML=`<div class="mo"><div class="mot">Modifier la période</div><div class="mos">Code : ${k}</div>
+  o.innerHTML=`<div class="mo"><div class="mot">Modifier — ${p.label}</div>
     <div class="fg"><label class="fl">Label</label><input class="fc" id="ep-l" value="${p.label}"></div>
-    <div class="g2">
-      <div class="fg"><label class="fl">Objectif heures</label><input type="number" class="fc" id="ep-h" value="${p.goalH}"></div>
-      <div class="fg"><label class="fl">Jours ouvrés</label><input type="number" class="fc" id="ep-d" value="${p.days}"></div>
-    </div>
+    <div class="g2"><div class="fg"><label class="fl">Objectif heures</label><input type="number" class="fc" id="ep-h" value="${p.goalH}"></div><div class="fg"><label class="fl">Jours ouvrés</label><input type="number" class="fc" id="ep-d" value="${p.days}"></div></div>
     <div class="fg"><label class="fl">H/jour accord</label><input type="number" class="fc" id="ep-hd" value="${p.hpd||6}"></div>
-    <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn btng" style="flex:1" onclick="this.closest('.mo-ov').remove()">Annuler</button>
-      <button class="btn btnp" style="flex:1" onclick="V.confirmEditPer('${k}')">Enregistrer</button>
-    </div>
+    <div style="display:flex;gap:10px;margin-top:8px"><button class="btn btng" style="flex:1" onclick="this.closest('.mo-ov').remove()">Annuler</button><button class="btn btnp" style="flex:1" onclick="V.confirmEditPer('${k}')">Enregistrer</button></div>
   </div>`;
   document.body.appendChild(o);
 },
 
 confirmEditPer(k){
-  const p=DB.periods[k]; if(!p) return;
+  const p=DB.periods[k];if(!p) return;
   p.label=document.getElementById('ep-l')?.value.trim()||p.label;
   p.goalH=parseFloat(document.getElementById('ep-h')?.value)||p.goalH;
   p.days=parseInt(document.getElementById('ep-d')?.value)||p.days;
@@ -1260,74 +1322,65 @@ delPer(k){
   document.getElementById('per-body').innerHTML=V._renderPer();
 },
 
-// ── ADMIN EXPORTS & RAPPORTS ─────────────────────────────────────────
-'ad-export'() {
+// ══ ADMIN EXPORTS ════════════════════════════════════════════════════
+'ad-export'(){
   const cfg=DB.periods[DB.period]||{};
   document.getElementById('view').innerHTML=`
-    <div class="ibox">Exports basés sur la période sélectionnée : <strong style="color:var(--acc)">${cfg.label||DB.period}</strong></div>
+    <div class="ibox">Tous les exports sont basés sur la période : <strong style="color:var(--acc)">${cfg.label||DB.period}</strong>. Format CSV UTF-8 avec BOM (compatible Excel).</div>
     <div class="g3">
-      <div class="card" style="cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--acc)'" onmouseleave="this.style.borderColor=''" onclick="V.exportTeam()">
-        <div style="font-size:32px;margin-bottom:12px">📊</div>
-        <div class="ct" style="margin-bottom:6px">Rapport équipe CSV</div>
-        <div style="font-size:12px;color:var(--dim)">Tous les agents : temps, %, RDV</div>
-        <button class="btn btnp bsm" style="margin-top:14px">Télécharger ↗</button>
+      <div class="card" style="cursor:pointer" onclick="V.exportTeam()">
+        <div style="font-size:32px;margin-bottom:10px">📊</div>
+        <div class="ct" style="margin-bottom:5px">Rapport équipe</div>
+        <div style="font-size:12px;color:var(--dim)">Tous les agents : temps, %, RDV, TMC</div>
+        <button class="btn btnp bsm" style="margin-top:12px">Télécharger ↗</button>
       </div>
-      <div class="card" style="cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--acc)'" onmouseleave="this.style.borderColor=''">
-        <div style="font-size:32px;margin-bottom:12px">👤</div>
-        <div class="ct" style="margin-bottom:6px">Rapports par agent</div>
-        <div style="font-size:12px;color:var(--dim);margin-bottom:10px">CSV individuel journalier</div>
+      <div class="card">
+        <div style="font-size:32px;margin-bottom:10px">👤</div>
+        <div class="ct" style="margin-bottom:5px">Rapport individuel</div>
         <select class="fc bsm" id="exp-ag" style="margin-bottom:8px">${DB.agents.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
         <button class="btn btnp bsm" onclick="V.exportCSV(document.getElementById('exp-ag').value)">Télécharger ↗</button>
       </div>
-      <div class="card" style="cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--grn)'" onmouseleave="this.style.borderColor=''">
-        <div style="font-size:32px;margin-bottom:12px">📋</div>
-        <div class="ct" style="margin-bottom:6px">Rapport réunions</div>
-        <div style="font-size:12px;color:var(--dim)">Toutes les sessions coaching & réunions</div>
-        <button class="btn" style="margin-top:14px;background:var(--grnD);color:var(--grn);border:1px solid rgba(16,185,129,.2)" onclick="V.exportMtg()">Télécharger ↗</button>
+      <div class="card" style="cursor:pointer" onclick="V.exportMtg()">
+        <div style="font-size:32px;margin-bottom:10px">📋</div>
+        <div class="ct" style="margin-bottom:5px">Rapport réunions</div>
+        <div style="font-size:12px;color:var(--dim)">Coaching, formations, décorticages</div>
+        <button class="btn bsm" style="margin-top:12px;background:var(--grnD);color:var(--grn);border:1px solid rgba(16,185,129,.2)">Télécharger ↗</button>
       </div>
     </div>
-
-    <!-- Récap chiffres clés -->
     <div class="card">
       <div class="ch"><div class="ct">Récapitulatif — ${cfg.label||DB.period}</div></div>
       <div class="tw"><table>
-        <thead><tr><th>Agent</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual.</th><th style="color:var(--grn)">Réunions</th><th style="color:var(--cyn)">Total</th><th>%</th><th style="color:var(--red)">RDV</th><th>Taux</th></tr></thead>
+        <thead><tr><th>Agent</th><th style="color:var(--acc)">Comm.</th><th style="color:var(--amb)">Attente</th><th style="color:var(--pur)">Qual.</th><th style="color:var(--grn)">Réunions</th><th style="color:var(--cyn)">Total</th><th>%</th><th style="color:var(--red)">RDV</th><th>Taux</th><th style="color:var(--ora)">TMC</th><th style="color:var(--grn)">Rém. (MAD)</th></tr></thead>
         <tbody>
-          ${DB.agents.map(ag=>{const s=U.calc(ag.id,DB.period);return`<tr>
-            <td><div style="display:flex;align-items:center;gap:8px"><div class="agav" style="background:${ag.color||'#4f7ef8'};width:24px;height:24px;font-size:9px">${U.initials(ag.name)}</div><span class="tn">${ag.name}</span></div></td>
-            <td style="color:var(--acc)">${U.hms(s.tC)}</td>
-            <td style="color:var(--amb)">${U.hms(s.tW)}</td>
-            <td style="color:var(--pur)">${U.hms(s.tQP)}</td>
-            <td style="color:var(--grn)">${U.hms(s.tM)}</td>
-            <td style="color:var(--cyn);font-weight:700">${U.hms(s.tot)}</td>
-            <td><span class="badge ${U.pbadge(s.pct)}">${s.pct.toFixed(1)}%</span></td>
-            <td style="color:var(--red)">${s.tSales}</td>
-            <td>${s.rdvRate.toFixed(1)}%</td>
-          </tr>`;}).join('')}
+          ${DB.agents.map(ag=>{
+            const s=U.calc(ag.id,DB.period);
+            const rem=ag.salBase?Math.round(ag.salBase*(s.pct/100)):0;
+            return`<tr>
+              <td><div style="display:flex;align-items:center;gap:7px"><div class="agav" style="background:${ag.color||'#4f7ef8'};width:24px;height:24px;font-size:9px">${U.initials(ag.name)}</div><span class="tn">${ag.name}</span></div></td>
+              <td style="color:var(--acc)">${U.hms(s.tC)}</td><td style="color:var(--amb)">${U.hms(s.tW)}</td><td style="color:var(--pur)">${U.hms(s.tQP)}</td><td style="color:var(--grn)">${U.hms(s.tM)}</td>
+              <td style="color:var(--cyn);font-weight:700">${U.hms(s.tot)}</td>
+              <td><span class="badge ${U.pbadge(s.pct)}">${s.pct.toFixed(1)}%</span></td>
+              <td style="color:var(--red)">${s.tSales}</td><td>${s.rdvRate.toFixed(1)}%</td>
+              <td style="color:var(--ora)">${U.secToMMSS(s.tmcSec)}</td>
+              <td style="color:var(--grn);font-weight:700">${rem?rem.toLocaleString('fr-FR')+' MAD':'—'}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table></div>
     </div>`;
 },
 
-exportMtg() {
+exportMtg(){
   const logs=DB.mtg_log.filter(m=>m.period===DB.period);
-  let csv='Agent;Date;Durée (min);Type;Note\n';
-  logs.forEach(m=>{
-    const ag=DB.agents.find(a=>a.id===m.agId);
-    csv+=`${ag?.name||m.agId};${m.date};${m.durMin};${m.type};${m.note||''}\n`;
-  });
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));
-  a.download=`Reunions_${DB.period}.csv`;
-  a.click(); App.toast('Export réunions téléchargé','s');
+  let csv='Agent;ID Vicidial;Date;Durée (min);Type;Note\n';
+  logs.forEach(m=>{const ag=DB.agents.find(a=>a.id===m.agId);csv+=`${ag?.name||m.agId};${ag?.viciId||m.agId};${m.date};${m.durMin};${m.type};${m.note||''}\n`;});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download=`Reunions_${DB.period}.csv`;a.click();
+  App.toast('Export réunions téléchargé','s');
 },
 
-}; // fin V
+};// fin V
 
-// Init
-window.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('log-id').focus();
-});
+window.addEventListener('DOMContentLoaded',()=>{ document.getElementById('log-id').focus(); });
 </script>
 </body>
 </html>
