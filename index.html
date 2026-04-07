@@ -255,6 +255,7 @@ textarea.fc{resize:vertical;min-height:160px;font-family:'JetBrains Mono';font-s
     <input type="password" id="log-pw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')Auth.login()">
     <button class="lbtn" onclick="Auth.login()">Se connecter</button>
     <div id="lerr" class="lerr">Identifiants incorrects.</div>
+    <div style="margin-top:14px;font-size:11px;color:var(--mu)">Si la connexion échoue, <a href="javascript:void(0)" onclick="localStorage.clear();location.reload()" style="color:var(--acc)">réinitialiser le cache</a></div>
   </div>
 </div>
 
@@ -315,7 +316,7 @@ textarea.fc{resize:vertical;min-height:160px;font-family:'JetBrains Mono';font-s
 // CONSTANTES
 // ═══════════════════════════════════════════════
 const QUAL_CAP = 1800;
-const DB_KEY   = 'asp_v6';
+const DB_KEY   = 'asp_v7_clean';
 const COLORS   = ['#4f7ef8','#10b981','#f59e0b','#a78bfa','#22d3ee','#ef4444','#f97316','#ec4899','#06b6d4','#84cc16','#8b5cf6','#14b8a6'];
 const HPD_OPTIONS = [6, 7, 8];
 
